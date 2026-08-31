@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Все Про Жар",
+    "slug": "vse-pro-zhar",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "vseprozhar",
+    "platforms": ["ios", "android", "web"],
+    "userInterfaceStyle": "automatic",
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "plugins": ["expo-router"]
+  }
+}

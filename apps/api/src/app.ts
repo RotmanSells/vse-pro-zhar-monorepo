@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
 
 import type { ApiConfig } from "./config/env.js";
@@ -21,6 +22,9 @@ export function buildApp(
     genReqId: () => randomUUID()
   });
 
+  void app.register(cors, {
+    origin: config.corsAllowedOrigins
+  });
   registerErrorHandlers(app);
   registerHealthRoute(app, config, options.now ?? (() => new Date()));
 

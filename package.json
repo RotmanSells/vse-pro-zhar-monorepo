@@ -9,13 +9,16 @@
     "pnpm": ">=11.24.0 <12"
   },
   "scripts": {
+    "dev": "pnpm -r --parallel --filter @vse-pro-zhar/api --filter @vse-pro-zhar/customer --filter @vse-pro-zhar/admin run dev",
     "lint": "eslint . --max-warnings 0 && pnpm -r --if-present lint",
     "typecheck": "tsc --project tsconfig.json --noEmit && pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
-    "build": "pnpm -r --if-present build"
+    "build": "pnpm -r --if-present build",
+    "e2e": "pnpm --filter @vse-pro-zhar/contracts build && pnpm exec playwright test"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.1",
     "eslint": "10.8.1",
     "typescript": "5.9.3",
     "typescript-eslint": "8.67.0"

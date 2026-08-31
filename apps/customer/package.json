@@ -1,0 +1,37 @@
+{
+  "name": "@vse-pro-zhar/customer",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "dev": "pnpm --filter @vse-pro-zhar/contracts build && expo start --web --localhost --port 8082",
+    "build": "pnpm --filter @vse-pro-zhar/contracts build && expo export --platform web",
+    "typecheck": "pnpm --filter @vse-pro-zhar/contracts build && tsc --project tsconfig.json --noEmit",
+    "lint": "eslint src test --max-warnings 0",
+    "test": "pnpm --filter @vse-pro-zhar/contracts build && vitest run"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "57.0.14",
+    "@vse-pro-zhar/contracts": "workspace:*",
+    "expo": "57.0.18",
+    "expo-constants": "57.0.16",
+    "expo-linking": "57.0.8",
+    "expo-router": "57.0.17",
+    "expo-status-bar": "57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "5.7.0",
+    "react-native-screens": "4.26.0",
+    "react-native-gesture-handler": "2.32.0",
+    "react-native-reanimated": "4.5.1",
+    "react-native-web": "0.21.2",
+    "react-native-worklets": "0.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.4",
+    "@types/react-dom": "19.2.5",
+    "vitest": "4.1.11"
+  }
+}

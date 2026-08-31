@@ -41,6 +41,31 @@ describe("API HTTP foundation", () => {
     });
   });
 
+  it("limits browser access to the configured origins", async () => {
+    const allowedResponse = await app.inject({
+      method: "GET",
+      url: "/health",
+      headers: { origin: "http://localhost:8082" }
+    });
+
+    expect(allowedResponse.headers["access-control-allow-origin"]).toBe(
+      "http://localhost:8082"
+    );
+    expect(allowedResponse.headers["access-control-allow-origin"]).not.toBe(
+      "*"
+    );
+
+    const disallowedResponse = await app.inject({
+      method: "GET",
+      url: "/health",
+      headers: { origin: "https://malicious.example" }
+    });
+
+    expect(
+      disallowedResponse.headers["access-control-allow-origin"]
+    ).toBeUndefined();
+  });
+
   it("returns a safe error envelope for an unknown route", async () => {
     const response = await app.inject({
       method: "GET",

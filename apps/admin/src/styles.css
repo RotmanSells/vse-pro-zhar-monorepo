@@ -1,0 +1,118 @@
+:root {
+  color: #431407;
+  background: #fff7ed;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button {
+  font: inherit;
+}
+
+.page-shell {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.diagnostic-card {
+  background: #ffffff;
+  border: 1px solid #fed7aa;
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgb(124 45 18 / 10%);
+  max-width: 560px;
+  padding: 40px;
+  width: 100%;
+}
+
+.eyebrow {
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  margin: 0 0 12px;
+}
+
+h1 {
+  font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1.05;
+  margin: 0;
+}
+
+.subtitle {
+  color: #9a3412;
+  line-height: 1.5;
+  margin: 14px 0 0;
+}
+
+.backend-panel {
+  border-top: 1px solid #ffedd5;
+  margin-top: 32px;
+  padding-top: 24px;
+}
+
+.panel-label {
+  color: #7c2d12;
+  font-size: 14px;
+  font-weight: 800;
+  margin: 0 0 12px;
+}
+
+.status {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.status-loading {
+  color: #57534e;
+}
+
+.status-connected {
+  color: #15803d;
+}
+
+.status-disconnected {
+  color: #b91c1c;
+}
+
+.details,
+.error-message {
+  color: #78716c;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+
+.retry-button {
+  background: #ea580c;
+  border: 0;
+  border-radius: 10px;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+  margin-top: 18px;
+  padding: 10px 16px;
+}
+
+.retry-button:hover {
+  background: #c2410c;
+}
+
+.retry-button:focus-visible {
+  outline: 3px solid #fdba74;
+  outline-offset: 3px;
+}

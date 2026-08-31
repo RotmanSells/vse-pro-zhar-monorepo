@@ -1,0 +1,25 @@
+{
+  "name": "@vse-pro-zhar/admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "build": "vite build",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "lint": "eslint src test vite.config.ts --max-warnings 0",
+    "test": "pnpm --filter @vse-pro-zhar/contracts build && vitest run"
+  },
+  "dependencies": {
+    "@vse-pro-zhar/contracts": "workspace:*",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.5",
+    "@vitejs/plugin-react": "6.1.1",
+    "vite": "8.2.2",
+    "vitest": "4.1.11"
+  }
+}

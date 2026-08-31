@@ -13,7 +13,13 @@ describe("loadConfig", () => {
     ).toEqual({
       environment: "test",
       host: "127.0.0.1",
-      port: 3100
+      port: 3100,
+      corsAllowedOrigins: [
+        "http://127.0.0.1:8082",
+        "http://localhost:8082",
+        "http://127.0.0.1:5173",
+        "http://localhost:5173"
+      ]
     });
   });
 
@@ -21,8 +27,27 @@ describe("loadConfig", () => {
     expect(loadConfig({})).toEqual({
       environment: "development",
       host: "127.0.0.1",
-      port: 3000
+      port: 3000,
+      corsAllowedOrigins: [
+        "http://127.0.0.1:8082",
+        "http://localhost:8082",
+        "http://127.0.0.1:5173",
+        "http://localhost:5173"
+      ]
     });
+  });
+
+  it("requires an explicit origin allowlist in production", () => {
+    expect(() => loadConfig({ APP_ENV: "production" })).toThrow(
+      "Invalid API configuration"
+    );
+
+    expect(
+      loadConfig({
+        APP_ENV: "production",
+        CORS_ALLOWED_ORIGINS: "https://customer.example, https://admin.example"
+      }).corsAllowedOrigins
+    ).toEqual(["https://customer.example", "https://admin.example"]);
   });
 
   it("rejects an unsupported environment", () => {
