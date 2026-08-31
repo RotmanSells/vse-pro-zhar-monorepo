@@ -1,8 +1,8 @@
 # Все Про Жар
 
-Цифровой контур одного ресторана в Краснодаре: customer application, admin и backend будут добавляться поэтапно согласно [дорожной карте](docs/ROADMAP.md).
+Цифровой контур одного ресторана в Краснодаре: backend foundation уже создан, а customer application и admin будут добавляться поэтапно согласно [дорожной карте](docs/ROADMAP.md).
 
-Текущий этап — `M0.1 Workspace Foundation`. Бизнес-функциональность и приложения пока не реализованы.
+Текущий этап — `M0.2 API + Shared Contracts Foundation`. Бизнес-функциональность, Customer и Admin пока не реализованы.
 
 ## Документация
 
@@ -18,8 +18,8 @@
 ## Структура
 
 ```text
-apps/      # будущие приложения
-packages/  # будущие общие пакеты
+apps/      # приложения; сейчас apps/api
+packages/  # общие пакеты; сейчас packages/contracts
 docs/      # проектная документация
 ```
 
@@ -40,4 +40,32 @@ pnpm test
 pnpm build
 ```
 
-`test` и `build` используют workspace-оркестрацию с `--if-present`; пока в workspace нет приложений и пакетов, реальные targets для них отсутствуют.
+Root-команды используют workspace-оркестрацию с `pnpm`. На текущем этапе реальные targets есть у `apps/api`; продуктовые приложения и database foundation пока не создавались.
+
+## API foundation
+
+Локально запустить API:
+
+```bash
+pnpm --filter @vse-pro-zhar/api dev
+```
+
+Проверить:
+
+```text
+GET /health
+```
+
+Ответ `/health` имеет shared Zod contract `HealthResponseSchema`. Неизвестные маршруты возвращают JSON envelope:
+
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Ресурс не найден",
+    "requestId": "..."
+  }
+}
+```
+
+Текущие API error codes: `NOT_FOUND` и `INTERNAL_ERROR`.
