@@ -14,6 +14,7 @@ apps/api/       # Fastify Backend API
 apps/customer/  # Expo + React Native + React Native Web + Expo Router
 apps/admin/     # React + Vite Web Admin
 packages/contracts/  # shared Zod contracts
+packages/api-client/ # shared /health client and request lifecycle boundary
 packages/database/   # PostgreSQL pool + Drizzle migrations
 docs/           # product, architecture, roadmap and execution plans
 e2e/            # small foundation browser smoke
@@ -48,6 +49,8 @@ cp .env.example .env
 
 `EXPO_PUBLIC_API_URL` и `VITE_API_URL` по умолчанию используют `http://127.0.0.1:3000`. Не помещайте secrets в public-prefixed variables.
 
+Expo CLI может создавать `apps/customer/expo-env.d.ts`; этот generated-файл игнорируется Git. Управляемая типизация `EXPO_PUBLIC_API_URL` хранится в `apps/customer/src/env.d.ts`.
+
 ## Development
 
 Запустить API, Customer Web и Admin Web одной командой:
@@ -56,6 +59,8 @@ cp .env.example .env
 pnpm dev
 ```
 
+Root `pnpm dev` сначала один раз собирает `packages/contracts` и `packages/api-client`, затем запускает API, Customer Web и Admin Web параллельно. Отдельные package-команды `dev` и `build` сами подготавливают shared packages перед своим запуском; root использует внутренние `*:root` scripts, чтобы не повторять эту подготовку в параллельных процессах.
+
 Development URLs:
 
 - Customer Web: <http://localhost:8082>
@@ -63,7 +68,7 @@ Development URLs:
 - API: <http://127.0.0.1:3000>
 - Health: <http://127.0.0.1:3000/health>
 
-Customer и Admin знают только Backend API. Они получают `/health` через небольшой API boundary и runtime-валидируют ответ через `@vse-pro-zhar/contracts` / `HealthResponseSchema`. Оба экрана имеют loading, success, error и retry состояния.
+Customer и Admin знают только Backend API. Они получают `/health` через общий `@vse-pro-zhar/api-client`, который нормализует URL, валидирует ответ через `@vse-pro-zhar/contracts` / `HealthResponseSchema` и управляет timeout/abort. `EXPO_PUBLIC_API_URL` и `VITE_API_URL` остаются раздельными platform env adapters. Оба экрана имеют loading, success, error и retry состояния.
 
 Customer — universal Expo project с targets `web`, `ios`, `android`; web проверяется ежедневно. Это не WebView wrapper. Native build и Xcode/Android Studio не требуются для обычной foundation-проверки.
 

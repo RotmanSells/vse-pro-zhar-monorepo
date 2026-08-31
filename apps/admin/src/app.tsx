@@ -1,65 +1,43 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { HealthResponse } from "@vse-pro-zhar/contracts";
-
 import {
-  createHealthClient,
-  HealthClientError,
-  type HealthClient
-} from "./api/health-client";
-import "./styles.css";
+  createHealthRequestController,
+  type HealthRequestController,
+  type HealthRequestState
+} from "@vse-pro-zhar/api-client";
 
-type HealthScreenState =
-  | { readonly status: "loading" }
-  | { readonly status: "success"; readonly health: HealthResponse }
-  | { readonly status: "error"; readonly message: string };
+import { createHealthClient, type HealthClient } from "./api/health-client";
+import "./styles.css";
 
 export interface AppProps {
   readonly client?: HealthClient;
 }
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof HealthClientError) {
-    return error.message;
-  }
-
-  return "Не удалось получить состояние Backend API";
-}
-
 export function App({ client }: AppProps): React.JSX.Element {
   const defaultClient = useMemo(() => createHealthClient(), []);
   const healthClient = client ?? defaultClient;
-  const [state, setState] = useState<HealthScreenState>({ status: "loading" });
-  const isMounted = useRef(true);
+  const [state, setState] = useState<HealthRequestState>({
+    status: "loading"
+  });
+  const controllerRef = useRef<HealthRequestController | null>(null);
 
   useEffect(() => {
-    isMounted.current = true;
+    const controller = createHealthRequestController(healthClient, setState);
+    controllerRef.current = controller;
+    controller.start();
 
     return () => {
-      isMounted.current = false;
+      controller.dispose();
+
+      if (controllerRef.current === controller) {
+        controllerRef.current = null;
+      }
     };
-  }, []);
-
-  const loadHealth = useCallback((): void => {
-    setState({ status: "loading" });
-
-    void healthClient
-      .getHealth()
-      .then((health) => {
-        if (isMounted.current) {
-          setState({ status: "success", health });
-        }
-      })
-      .catch((error: unknown) => {
-        if (isMounted.current) {
-          setState({ status: "error", message: getErrorMessage(error) });
-        }
-      });
   }, [healthClient]);
 
-  useEffect(() => {
-    loadHealth();
-  }, [loadHealth]);
+  const loadHealth = useCallback((): void => {
+    controllerRef.current?.retry();
+  }, []);
 
   return (
     <main className="page-shell">

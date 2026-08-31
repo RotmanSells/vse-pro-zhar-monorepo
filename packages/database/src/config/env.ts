@@ -45,14 +45,94 @@ export const DatabaseConfigSchema = z
 
 export type DatabaseConfig = z.infer<typeof DatabaseConfigSchema>;
 
+export interface ConfigDiagnostic {
+  readonly path: string;
+  readonly message: string;
+}
+
+export class DatabaseConfigError extends Error {
+  readonly issues: readonly ConfigDiagnostic[];
+
+  constructor(issues: readonly ConfigDiagnostic[]) {
+    super("Invalid database configuration");
+    this.name = "DatabaseConfigError";
+    this.issues = issues;
+  }
+}
+
+function getSafeIssueMessage(code: string): string {
+  switch (code) {
+    case "invalid_type":
+      return "value has invalid type";
+    case "too_small":
+      return "value is missing or too short";
+    case "too_big":
+      return "value is too large";
+    case "invalid_format":
+      return "value has invalid format";
+    case "invalid_value":
+      return "value is not allowed";
+    case "custom":
+      return "value has invalid format";
+    default:
+      return "value is invalid";
+  }
+}
+
+function toSafeDiagnostics(
+  issues: readonly {
+    readonly path: readonly PropertyKey[];
+    readonly code: string;
+  }[]
+): ConfigDiagnostic[] {
+  return issues.map((issue) => ({
+    path:
+      issue.path.length === 0
+        ? "DATABASE_URL"
+        : issue.path.map((segment) => String(segment)).join("."),
+    message: getSafeIssueMessage(issue.code)
+  }));
+}
+
 export function loadDatabaseConfig(
   env: NodeJS.ProcessEnv = process.env
 ): DatabaseConfig {
   const parsed = RawDatabaseConfigSchema.safeParse(env);
 
   if (!parsed.success) {
-    throw new Error("Invalid database configuration", { cause: parsed.error });
+    throw new DatabaseConfigError(toSafeDiagnostics(parsed.error.issues));
   }
 
-  return DatabaseConfigSchema.parse({ url: parsed.data.DATABASE_URL });
+  const config = DatabaseConfigSchema.safeParse({
+    url: parsed.data.DATABASE_URL
+  });
+
+  if (!config.success) {
+    throw new DatabaseConfigError(toSafeDiagnostics(config.error.issues));
+  }
+
+  return config.data;
+}
+
+export type DatabaseOperation = "probe" | "migration";
+
+export function formatDatabaseFailure(
+  operation: DatabaseOperation,
+  error: unknown
+): string {
+  const event = `database_${operation}_failed`;
+
+  if (error instanceof DatabaseConfigError) {
+    return JSON.stringify({
+      category: "configuration",
+      event,
+      issues: error.issues
+    });
+  }
+
+  return JSON.stringify({
+    category: "runtime",
+    event,
+    message: "Database operation failed"
+  });
 }

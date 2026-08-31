@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { loadConfig } from "../src/config/env.js";
+import { formatApiStartupError } from "../src/config/diagnostics.js";
+import { ApiConfigError, loadConfig } from "../src/config/env.js";
 
 describe("loadConfig", () => {
   it("accepts valid runtime configuration", () => {
@@ -60,5 +61,30 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ API_PORT: "not-a-port" })).toThrow(
       "Invalid API configuration"
     );
+  });
+
+  it("provides structured startup diagnostics without raw values", () => {
+    let error: unknown;
+
+    try {
+      loadConfig({ APP_ENV: "production", CORS_ALLOWED_ORIGINS: "not-an-origin" });
+    } catch (caught: unknown) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(ApiConfigError);
+    expect(formatApiStartupError(error)).toBe(
+      JSON.stringify({
+        category: "configuration",
+        event: "api_startup_failed",
+        issues: [
+          {
+            path: "CORS_ALLOWED_ORIGINS[0]",
+            message: "value has invalid format"
+          }
+        ]
+      })
+    );
+    expect(formatApiStartupError(error)).not.toContain("not-an-origin");
   });
 });

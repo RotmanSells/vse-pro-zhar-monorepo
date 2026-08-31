@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 
+import { formatDatabaseFailure } from "./config/env.js";
 import { createDatabaseClient, type DatabaseClient } from "./db.js";
 
 export const migrationsFolder = resolve(
@@ -31,8 +32,8 @@ const isMainModule =
   entryPath !== undefined && fileURLToPath(import.meta.url) === resolve(entryPath);
 
 if (isMainModule) {
-  void main().catch(() => {
-    console.error("database_migration_failed");
+  void main().catch((error: unknown) => {
+    console.error(formatDatabaseFailure("migration", error));
     process.exitCode = 1;
   });
 }

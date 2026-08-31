@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 
 import { buildApp } from "./app.js";
 import { loadConfig, type ApiConfig } from "./config/env.js";
+import { formatApiStartupError } from "./config/diagnostics.js";
 
 export function installGracefulShutdown(app: FastifyInstance): void {
   let shuttingDown = false;
@@ -43,7 +44,6 @@ async function main(): Promise<void> {
 }
 
 void main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : "Unknown startup error";
-  console.error(`api_startup_failed: ${message}`);
+  console.error(formatApiStartupError(error));
   process.exitCode = 1;
 });

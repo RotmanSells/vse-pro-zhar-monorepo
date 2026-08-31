@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createDatabaseClient } from "./db.js";
+import { formatDatabaseFailure } from "./config/env.js";
 
 async function main(): Promise<void> {
   const client = createDatabaseClient();
@@ -18,8 +19,8 @@ const isMainModule =
   entryPath !== undefined && fileURLToPath(import.meta.url) === resolve(entryPath);
 
 if (isMainModule) {
-  void main().catch(() => {
-    console.error("database_probe_failed");
+  void main().catch((error: unknown) => {
+    console.error(formatDatabaseFailure("probe", error));
     process.exitCode = 1;
   });
 }

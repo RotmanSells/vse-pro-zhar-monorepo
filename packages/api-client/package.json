@@ -1,15 +1,21 @@
 {
-  "name": "@vse-pro-zhar/api",
+  "name": "@vse-pro-zhar/api-client",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
   "scripts": {
-    "dev": "pnpm --filter @vse-pro-zhar/contracts build && pnpm run dev:root",
-    "dev:root": "tsx watch src/server.ts",
     "build": "pnpm --filter @vse-pro-zhar/contracts build && pnpm run build:root",
     "build:root": "tsc --project tsconfig.build.json",
-    "start": "pnpm --filter @vse-pro-zhar/contracts build && pnpm run start:root",
-    "start:root": "node dist/server.js",
     "typecheck": "pnpm --filter @vse-pro-zhar/contracts build && pnpm run typecheck:root",
     "typecheck:root": "tsc --project tsconfig.json --noEmit",
     "lint": "eslint src test --max-warnings 0",
@@ -17,14 +23,9 @@
     "test:root": "vitest run"
   },
   "dependencies": {
-    "@vse-pro-zhar/contracts": "workspace:*",
-    "@fastify/cors": "11.3.0",
-    "fastify": "5.12.1",
-    "zod": "4.5.4"
+    "@vse-pro-zhar/contracts": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "24.13.3",
-    "tsx": "4.23.13",
     "vitest": "4.1.11"
   }
 }

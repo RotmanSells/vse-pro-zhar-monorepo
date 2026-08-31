@@ -16,6 +16,8 @@ test-results/
 .env.*
 !.env.example
 
+apps/customer/expo-env.d.ts
+
 .DS_Store
 *.log
 pnpm-debug.log*

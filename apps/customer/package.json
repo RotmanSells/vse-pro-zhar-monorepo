@@ -4,14 +4,19 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "pnpm --filter @vse-pro-zhar/contracts build && expo start --web --localhost --port 8082",
-    "build": "pnpm --filter @vse-pro-zhar/contracts build && expo export --platform web",
-    "typecheck": "pnpm --filter @vse-pro-zhar/contracts build && tsc --project tsconfig.json --noEmit",
+    "dev": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/api-client build:root && pnpm run dev:root",
+    "dev:root": "expo start --web --localhost --port 8082",
+    "build": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/api-client build:root && pnpm run build:root",
+    "build:root": "expo export --platform web",
+    "typecheck": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/api-client build:root && pnpm run typecheck:root",
+    "typecheck:root": "tsc --project tsconfig.json --noEmit",
     "lint": "eslint src test --max-warnings 0",
-    "test": "pnpm --filter @vse-pro-zhar/contracts build && vitest run"
+    "test": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/api-client build:root && pnpm run test:root",
+    "test:root": "vitest run"
   },
   "dependencies": {
     "@expo/metro-runtime": "57.0.14",
+    "@vse-pro-zhar/api-client": "workspace:*",
     "@vse-pro-zhar/contracts": "workspace:*",
     "expo": "57.0.18",
     "expo-constants": "57.0.16",
@@ -32,6 +37,8 @@
     "@types/node": "24.13.3",
     "@types/react": "19.2.4",
     "@types/react-dom": "19.2.5",
+    "@types/react-test-renderer": "19.1.0",
+    "react-test-renderer": "19.2.3",
     "vitest": "4.1.11"
   }
 }

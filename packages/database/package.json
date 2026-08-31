@@ -15,9 +15,12 @@
   "files": ["dist", "drizzle"],
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
+    "build:root": "tsc --project tsconfig.build.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
+    "typecheck:root": "tsc --project tsconfig.json --noEmit",
     "lint": "eslint src test drizzle.config.ts --max-warnings 0",
     "test": "vitest run",
+    "test:root": "vitest run",
     "generate": "drizzle-kit generate",
     "migrate": "tsx src/migrate.ts",
     "probe": "tsx src/probe.ts"

@@ -12,17 +12,17 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "pnpm --filter @vse-pro-zhar/api dev",
+      command: "pnpm --filter @vse-pro-zhar/api run dev:root",
       timeout: 180_000,
       url: "http://127.0.0.1:3000/health"
     },
     {
-      command: "pnpm --filter @vse-pro-zhar/customer dev",
+      command: "pnpm --filter @vse-pro-zhar/customer run dev:root",
       timeout: 180_000,
       url: "http://localhost:8082"
     },
     {
-      command: "pnpm --filter @vse-pro-zhar/admin dev",
+      command: "pnpm --filter @vse-pro-zhar/admin run dev:root",
       timeout: 180_000,
       url: "http://127.0.0.1:5173"
     }

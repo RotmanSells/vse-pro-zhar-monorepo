@@ -76,28 +76,118 @@ export const ApiConfigSchema = z
 
 export type ApiConfig = z.infer<typeof ApiConfigSchema>;
 
+export interface ConfigDiagnostic {
+  readonly path: string;
+  readonly message: string;
+}
+
+export class ApiConfigError extends Error {
+  readonly issues: readonly ConfigDiagnostic[];
+
+  constructor(issues: readonly ConfigDiagnostic[]) {
+    super("Invalid API configuration");
+    this.name = "ApiConfigError";
+    this.issues = issues;
+  }
+}
+
+function formatIssuePath(path: readonly PropertyKey[]): string {
+  return path.reduce<string>((result, segment) => {
+    if (typeof segment === "number") {
+      return `${result}[${segment}]`;
+    }
+
+    const name = String(segment);
+    return result === "" ? name : `${result}.${name}`;
+  }, "");
+}
+
+function getSafeIssueMessage(code: string): string {
+  switch (code) {
+    case "invalid_type":
+      return "value has invalid type";
+    case "too_small":
+      return "value is missing or too short";
+    case "too_big":
+      return "value is too large";
+    case "invalid_format":
+      return "value has invalid format";
+    case "invalid_value":
+      return "value is not allowed";
+    case "custom":
+      return "value has invalid format";
+    default:
+      return "value is invalid";
+  }
+}
+
+function toSafeDiagnostics(
+  issues: readonly {
+    readonly path: readonly PropertyKey[];
+    readonly code: string;
+  }[],
+  prefix = ""
+): ConfigDiagnostic[] {
+  return issues.map((issue) => {
+    const issuePath = formatIssuePath(issue.path);
+    const path =
+      prefix === "" || issuePath === ""
+        ? `${prefix}${issuePath}`
+        : issuePath.startsWith("[")
+          ? `${prefix}${issuePath}`
+          : `${prefix}.${issuePath}`;
+
+    return {
+      path: path === "" ? "configuration" : path,
+      message: getSafeIssueMessage(issue.code)
+    };
+  });
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   const parsed = RawApiConfigSchema.safeParse(env);
 
   if (!parsed.success) {
-    throw new Error("Invalid API configuration", { cause: parsed.error });
+    throw new ApiConfigError(toSafeDiagnostics(parsed.error.issues));
   }
 
-  try {
-    const corsAllowedOrigins =
-      parsed.data.CORS_ALLOWED_ORIGINS === undefined
-        ? parsed.data.APP_ENV === "production"
-          ? undefined
-          : [...DEFAULT_CORS_ALLOWED_ORIGINS]
-        : CorsAllowedOriginsSchema.parse(parsed.data.CORS_ALLOWED_ORIGINS);
+  let corsAllowedOrigins: string[];
 
-    return ApiConfigSchema.parse({
-      environment: parsed.data.APP_ENV,
-      host: parsed.data.API_HOST,
-      port: parsed.data.API_PORT ?? 3000,
-      corsAllowedOrigins
-    });
-  } catch (error: unknown) {
-    throw new Error("Invalid API configuration", { cause: error });
+  if (parsed.data.CORS_ALLOWED_ORIGINS === undefined) {
+    if (parsed.data.APP_ENV === "production") {
+      throw new ApiConfigError([
+        {
+          path: "CORS_ALLOWED_ORIGINS",
+          message: "value is required in production"
+        }
+      ]);
+    }
+
+    corsAllowedOrigins = [...DEFAULT_CORS_ALLOWED_ORIGINS];
+  } else {
+    const parsedOrigins = CorsAllowedOriginsSchema.safeParse(
+      parsed.data.CORS_ALLOWED_ORIGINS
+    );
+
+    if (!parsedOrigins.success) {
+      throw new ApiConfigError(
+        toSafeDiagnostics(parsedOrigins.error.issues, "CORS_ALLOWED_ORIGINS")
+      );
+    }
+
+    corsAllowedOrigins = parsedOrigins.data;
   }
+
+  const config = ApiConfigSchema.safeParse({
+    environment: parsed.data.APP_ENV,
+    host: parsed.data.API_HOST,
+    port: parsed.data.API_PORT ?? 3000,
+    corsAllowedOrigins
+  });
+
+  if (!config.success) {
+    throw new ApiConfigError(toSafeDiagnostics(config.error.issues));
+  }
+
+  return config.data;
 }
