@@ -1,0 +1,23 @@
+{
+  "name": "vse-pro-zhar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=24.14.1 <25",
+    "pnpm": ">=11.24.0 <12"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0 && pnpm -r --if-present lint",
+    "typecheck": "tsc --project tsconfig.json --noEmit && pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm -r --if-present build"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.8.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.67.0"
+  }
+}
