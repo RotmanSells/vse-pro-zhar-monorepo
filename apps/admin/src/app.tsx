@@ -1,78 +1,99 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
-import {
-  createHealthRequestController,
-  type HealthRequestController,
-  type HealthRequestState
+import type {
+  CatalogAdminClient,
+  HealthClient
 } from "@vse-pro-zhar/api-client";
 
-import { createHealthClient, type HealthClient } from "./api/health-client";
+import { createCatalogClient } from "./api/catalog-client";
+import { CatalogScreen } from "./components/catalog-screen";
+import { HealthScreen } from "./components/health-screen";
 import "./styles.css";
 
 export interface AppProps {
-  readonly client?: HealthClient;
+  readonly client?: CatalogAdminClient | HealthClient;
+}
+
+function isHealthClient(
+  client: CatalogAdminClient | HealthClient
+): client is HealthClient {
+  return "getHealth" in client;
+}
+
+function AdminShell({ children }: { readonly children: React.ReactNode }): React.JSX.Element {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  return (
+    <div className="admin-layout">
+      <div className={`sidebar-backdrop ${sidebarOpen ? "show" : ""}`} />
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+        <div className="sidebar-logo">
+          <span aria-hidden="true">🔥</span>
+          <span>VPZ Admin</span>
+        </div>
+        <nav className="sidebar-nav" aria-label="Разделы админ-панели">
+          <button className="nav-item" disabled type="button">
+            <span aria-hidden="true">◉</span>
+            <span>Дашборд</span>
+          </button>
+          <button className="nav-item" disabled type="button">
+            <span aria-hidden="true">▣</span>
+            <span>Заказы</span>
+          </button>
+          <button className="nav-item active" type="button">
+            <span aria-hidden="true">🍴</span>
+            <span>Меню</span>
+          </button>
+          <button className="nav-item" disabled type="button">
+            <span aria-hidden="true">%</span>
+            <span>Промокоды</span>
+          </button>
+          <button className="nav-item" disabled type="button">
+            <span aria-hidden="true">◎</span>
+            <span>Квесты</span>
+          </button>
+          <button className="nav-item" disabled type="button">
+            <span aria-hidden="true">◌</span>
+            <span>Колесо фортуны</span>
+          </button>
+          <button className="nav-item" disabled type="button">
+            <span aria-hidden="true">♙</span>
+            <span>Клиенты</span>
+          </button>
+        </nav>
+        <div className="sidebar-footer">Каталог · M1</div>
+      </aside>
+
+      <div className="mobile-topbar">
+        <button
+          aria-label="Открыть меню"
+          className="hamburger"
+          onClick={() => setSidebarOpen((open) => !open)}
+          type="button"
+        >
+          ☰
+        </button>
+        <span className="mobile-brand">🔥 Все Про Жар</span>
+        <span className="mobile-page-name">Меню</span>
+      </div>
+
+      <main className="main" onClick={() => setSidebarOpen(false)}>
+        {children}
+      </main>
+    </div>
+  );
 }
 
 export function App({ client }: AppProps): React.JSX.Element {
-  const defaultClient = useMemo(() => createHealthClient(), []);
-  const healthClient = client ?? defaultClient;
-  const [state, setState] = useState<HealthRequestState>({
-    status: "loading"
-  });
-  const controllerRef = useRef<HealthRequestController | null>(null);
+  const defaultClient = useMemo(() => createCatalogClient(), []);
 
-  useEffect(() => {
-    const controller = createHealthRequestController(healthClient, setState);
-    controllerRef.current = controller;
-    controller.start();
-
-    return () => {
-      controller.dispose();
-
-      if (controllerRef.current === controller) {
-        controllerRef.current = null;
-      }
-    };
-  }, [healthClient]);
-
-  const loadHealth = useCallback((): void => {
-    controllerRef.current?.retry();
-  }, []);
+  if (client !== undefined && isHealthClient(client)) {
+    return <HealthScreen client={client} />;
+  }
 
   return (
-    <main className="page-shell">
-      <section className="diagnostic-card" aria-labelledby="admin-title">
-        <p className="eyebrow">FOUNDATION</p>
-        <h1 id="admin-title">Все Про Жар — Admin</h1>
-        <p className="subtitle">Минимальная web-поверхность для проверки Backend boundary</p>
-
-        <div className="backend-panel" aria-live="polite">
-          <p className="panel-label">Backend</p>
-
-          {state.status === "loading" ? (
-            <p className="status status-loading">Проверяем соединение…</p>
-          ) : null}
-
-          {state.status === "success" ? (
-            <div data-testid="backend-connected">
-              <p className="status status-connected">● Connected</p>
-              <p className="details">
-                {state.health.service} · {state.health.environment}
-              </p>
-            </div>
-          ) : null}
-
-          {state.status === "error" ? (
-            <div>
-              <p className="status status-disconnected">○ Disconnected</p>
-              <p className="error-message">{state.message}</p>
-              <button className="retry-button" onClick={loadHealth} type="button">
-                Повторить
-              </button>
-            </div>
-          ) : null}
-        </div>
-      </section>
-    </main>
+    <AdminShell>
+      <CatalogScreen client={client as CatalogAdminClient | undefined ?? defaultClient} />
+    </AdminShell>
   );
 }

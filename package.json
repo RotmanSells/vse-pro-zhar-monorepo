@@ -9,12 +9,12 @@
     "pnpm": ">=11.24.0 <12"
   },
   "scripts": {
-    "dev": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/api-client build:root && pnpm --parallel --filter @vse-pro-zhar/api --filter @vse-pro-zhar/customer --filter @vse-pro-zhar/admin run dev:root",
+    "dev": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/database build && pnpm --filter @vse-pro-zhar/api-client build:root && pnpm --parallel --filter @vse-pro-zhar/api --filter @vse-pro-zhar/customer --filter @vse-pro-zhar/admin run dev:root",
     "lint": "eslint . --max-warnings 0 && pnpm -r --if-present lint",
-    "typecheck": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/api-client build:root && tsc --project tsconfig.json --noEmit && pnpm --parallel --filter @vse-pro-zhar/api-client --filter @vse-pro-zhar/api --filter @vse-pro-zhar/customer --filter @vse-pro-zhar/admin --filter @vse-pro-zhar/database run typecheck:root",
-    "test": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/api-client build:root && pnpm --parallel --filter @vse-pro-zhar/api-client --filter @vse-pro-zhar/api --filter @vse-pro-zhar/customer --filter @vse-pro-zhar/admin --filter @vse-pro-zhar/database run test:root",
-    "build": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/api-client build:root && pnpm --parallel --filter @vse-pro-zhar/api --filter @vse-pro-zhar/customer --filter @vse-pro-zhar/admin --filter @vse-pro-zhar/database run build:root",
-    "e2e": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/api-client build:root && pnpm exec playwright test"
+    "typecheck": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/database build && pnpm --filter @vse-pro-zhar/api-client build:root && tsc --project tsconfig.json --noEmit && pnpm --parallel --filter @vse-pro-zhar/api-client --filter @vse-pro-zhar/api --filter @vse-pro-zhar/customer --filter @vse-pro-zhar/admin --filter @vse-pro-zhar/database run typecheck:root",
+    "test": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/database build && pnpm --filter @vse-pro-zhar/api-client build:root && pnpm --parallel --filter @vse-pro-zhar/contracts --filter @vse-pro-zhar/api-client --filter @vse-pro-zhar/api --filter @vse-pro-zhar/customer --filter @vse-pro-zhar/admin --filter @vse-pro-zhar/database run test:root",
+    "build": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/database build && pnpm --filter @vse-pro-zhar/api-client build:root && pnpm --parallel --filter @vse-pro-zhar/api --filter @vse-pro-zhar/customer --filter @vse-pro-zhar/admin --filter @vse-pro-zhar/database run build:root",
+    "e2e": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/database build && pnpm --filter @vse-pro-zhar/api-client build:root && pnpm exec playwright test"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

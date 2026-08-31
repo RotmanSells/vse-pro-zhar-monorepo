@@ -16,9 +16,14 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "lint": "eslint src --max-warnings 0"
+    "lint": "eslint src test --max-warnings 0",
+    "test": "pnpm run test:root",
+    "test:root": "vitest run"
   },
   "dependencies": {
     "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "vitest": "4.1.11"
   }
 }

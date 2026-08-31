@@ -13,7 +13,13 @@ export const HealthResponseSchema = z
   .strict();
 export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 
-export const ApiErrorCodeSchema = z.enum(["NOT_FOUND", "INTERNAL_ERROR"]);
+export const ApiErrorCodeSchema = z.enum([
+  "NOT_FOUND",
+  "VALIDATION_ERROR",
+  "SERVICE_UNAVAILABLE",
+  "PAYLOAD_TOO_LARGE",
+  "INTERNAL_ERROR"
+]);
 export type ApiErrorCode = z.infer<typeof ApiErrorCodeSchema>;
 
 export const ApiErrorSchema = z

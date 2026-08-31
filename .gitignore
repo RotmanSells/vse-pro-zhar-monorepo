@@ -16,6 +16,8 @@ test-results/
 .env.*
 !.env.example
 
+apps/api/data/
+
 apps/customer/expo-env.d.ts
 
 .DS_Store

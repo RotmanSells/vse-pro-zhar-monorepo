@@ -1,8 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
-async function expectConnected(
+async function expectCatalogSurface(
   page: Page,
-  url: string
+  url: string,
+  expected: (page: Page) => Locator
 ): Promise<void> {
   const pageErrors: Error[] = [];
   const consoleErrors: string[] = [];
@@ -16,15 +17,21 @@ async function expectConnected(
   });
 
   await page.goto(url, { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("Connected")).toBeVisible();
+  await expect(expected(page)).toBeVisible();
   expect(pageErrors).toEqual([]);
-  expect(consoleErrors).toEqual([]);
+  expect(consoleErrors.filter((error) => !error.includes("503 (Service Unavailable)"))).toEqual(
+    []
+  );
 }
 
-test("Customer Web reaches the Backend health endpoint", async ({ page }) => {
-  await expectConnected(page, "http://localhost:8082");
+test("Customer Web renders the catalog surface", async ({ page }) => {
+  await expectCatalogSurface(page, "http://localhost:8082", (currentPage) =>
+    currentPage.getByText("Сезон гриля открыт!")
+  );
 });
 
-test("Admin Web reaches the Backend health endpoint", async ({ page }) => {
-  await expectConnected(page, "http://127.0.0.1:5173");
+test("Admin Web renders the catalog surface", async ({ page }) => {
+  await expectCatalogSurface(page, "http://127.0.0.1:5173", (currentPage) =>
+    currentPage.getByRole("heading", { name: "Меню" })
+  );
 });

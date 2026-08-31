@@ -1,6 +1,6 @@
 # Все Про Жар
 
-Технический фундамент цифрового контура одного ресторана в Краснодаре. M0 собирает запускаемые границы Customer Web, Admin Web и Backend API, shared contracts, PostgreSQL/Drizzle foundation, CI и foundation smoke. Ресторанная business functionality начинается после M0 вертикальными срезами.
+Цифровой контур одного ресторана в Краснодаре. M0 собрал запускаемые границы Customer Web, Admin Web и Backend API, shared contracts, PostgreSQL/Drizzle foundation, CI и foundation smoke. M1 добавляет первый вертикальный бизнес-срез — каталог категорий и товаров.
 
 ## Требования
 
@@ -14,10 +14,10 @@ apps/api/       # Fastify Backend API
 apps/customer/  # Expo + React Native + React Native Web + Expo Router
 apps/admin/     # React + Vite Web Admin
 packages/contracts/  # shared Zod contracts
-packages/api-client/ # shared /health client and request lifecycle boundary
+packages/api-client/ # shared /health and /catalog clients + request lifecycle boundaries
 packages/database/   # PostgreSQL pool + Drizzle migrations
 docs/           # product, architecture, roadmap and execution plans
-e2e/            # small foundation browser smoke
+e2e/            # browser smoke and catalog lifecycle E2E
 ```
 
 ## Документация
@@ -27,6 +27,7 @@ e2e/            # small foundation browser smoke
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Дорожная карта](docs/ROADMAP.md)
 - [M0 milestone](docs/milestones/M0-foundation/README.md)
+- [M1 catalog execution plan](docs/exec-plans/completed/M1-catalog.md)
 - [Execution plan history](docs/exec-plans/)
 
 ## Environment setup
@@ -36,7 +37,7 @@ pnpm install
 cp .env.example .env
 ```
 
-Безопасные development defaults позволяют запустить Web/API без локального PostgreSQL. `DATABASE_URL` нужен для database commands и integration tests. `.env` игнорируется Git.
+Безопасные development defaults позволяют запустить Web/API без локального PostgreSQL. При отсутствии `DATABASE_URL` health-сценарий работает, а каталог явно показывает состояние недоступности; `DATABASE_URL` нужен для реального каталога, database commands и integration tests. `.env` игнорируется Git.
 
 | Переменная | Где используется | Доступность |
 | --- | --- | --- |
@@ -46,6 +47,8 @@ cp .env.example .env
 | `EXPO_PUBLIC_API_URL` | Customer API boundary | public bundle, не secret |
 | `VITE_API_URL` | Admin API boundary | public bundle, не secret |
 | `DATABASE_URL` | PostgreSQL/Drizzle | server/CI-only; никогда не frontend |
+| `MEDIA_DIR` | Backend local media storage | server-only |
+| `MEDIA_PUBLIC_URL` | Public base URL для `/media/*` | server-only |
 
 `EXPO_PUBLIC_API_URL` и `VITE_API_URL` по умолчанию используют `http://127.0.0.1:3000`. Не помещайте secrets в public-prefixed variables.
 
@@ -68,7 +71,7 @@ Development URLs:
 - API: <http://127.0.0.1:3000>
 - Health: <http://127.0.0.1:3000/health>
 
-Customer и Admin знают только Backend API. Они получают `/health` через общий `@vse-pro-zhar/api-client`, который нормализует URL, валидирует ответ через `@vse-pro-zhar/contracts` / `HealthResponseSchema` и управляет timeout/abort. `EXPO_PUBLIC_API_URL` и `VITE_API_URL` остаются раздельными platform env adapters. Оба экрана имеют loading, success, error и retry состояния.
+Customer и Admin знают только Backend API. Они получают `/catalog` через общий `@vse-pro-zhar/api-client`, который нормализует URL, валидирует ответы через `@vse-pro-zhar/contracts` и управляет timeout/abort; health-клиент сохраняет тот же boundary для `/health`. `EXPO_PUBLIC_API_URL` и `VITE_API_URL` остаются раздельными platform env adapters. Каталог имеет явные loading, empty, error и retry состояния.
 
 Customer — universal Expo project с targets `web`, `ios`, `android`; web проверяется ежедневно. Это не WebView wrapper. Native build и Xcode/Android Studio не требуются для обычной foundation-проверки.
 
@@ -90,11 +93,11 @@ pnpm exec playwright install chromium
 pnpm e2e
 ```
 
-Smoke поднимает API, Customer Web и Admin Web, проверяет `Connected` в обоих приложениях, `pageerror` и browser console errors.
+Smoke поднимает API, Customer Web и Admin Web, проверяет каталоговые поверхности, `pageerror` и browser console errors. Отдельный catalog E2E с PostgreSQL проверяет lifecycle: Admin создаёт и скрывает товар, Customer получает актуальное состояние.
 
 ## Database foundation
 
-Пакет использует PostgreSQL через `pg` и Drizzle ORM. В M0 нет business tables; migration metadata Drizzle является единственной технической частью migration mechanism.
+Пакет использует PostgreSQL через `pg` и Drizzle ORM. M1 добавляет versioned schema для `categories` и `products`; migration создаёт начальную таксономию из семи категорий, но не добавляет фиктивные товары.
 
 ```bash
 pnpm --filter @vse-pro-zhar/database generate
@@ -106,11 +109,15 @@ DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/vse_pro_zhar_dev \
   pnpm --filter @vse-pro-zhar/database test
 ```
 
-Migration files находятся в `packages/database/drizzle/`. Новые business schemas добавляются только в соответствующих vertical slices и проходят versioned migration.
+Migration files находятся в `packages/database/drizzle/`, а catalog repository — в `packages/database/src/catalog-repository.ts`. Цены хранятся в целых minor units (`priceMinor`); новые business schemas добавляются только в соответствующих vertical slices и проходят versioned migration.
 
 ## API foundation
 
-`GET /health` возвращает shared-contract-valid response с `service`, `status`, `environment` и ISO `timestamp`. Unknown routes и unexpected errors возвращают безопасный JSON envelope с request ID без внутренних деталей. API использует явный runtime-validated CORS allowlist и graceful shutdown.
+`GET /health` возвращает shared-contract-valid response с `service`, `status`, `environment` и ISO `timestamp`. `GET /catalog` отдаёт опубликованные категории и товары, `/admin/catalog` и catalog mutations используются Admin, а `POST /admin/media/images` принимает фото и возвращает оптимизированный WebP URL. Unknown routes, validation failures и unexpected errors возвращают безопасный JSON envelope с request ID без внутренних деталей. API использует явный runtime-validated CORS allowlist и graceful shutdown.
+
+## Изображения товаров
+
+Admin загружает JPG, PNG или WebP через `POST /admin/media/images`. Backend проверяет содержимое файла, применяет EXIF rotation, уменьшает изображение до `1600×1600`, конвертирует в WebP quality 82 и сохраняет его в `MEDIA_DIR`. В Product сохраняется только URL обработанного файла; исходный upload не хранится.
 
 ## CI
 

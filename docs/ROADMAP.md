@@ -1,8 +1,8 @@
 # Дорожная карта
 
 - M0 Foundation — completed: workspace, API/contracts, Customer Web, Admin Web, PostgreSQL/Drizzle, CI and foundation verification.
-- M1 Categories
-- M2 Products + Images
+- M1 Catalog — completed: categories, products, Admin mutations, Customer catalog view and web verification.
+- M2 Products + Images — in progress: server-side image upload and WebP optimization.
 - M3 iiko mapping + availability
 - M4 Cart
 - M5 Customer authentication
@@ -32,4 +32,4 @@ Admin / Customer intent
 → automated tests and verification
 ```
 
-M0 не создаёт catalog, auth, orders, payments, iiko, loyalty или другую business functionality.
+M0 не создаёт catalog, auth, orders, payments, iiko, loyalty или другую business functionality; M1 закрывает первый catalog slice.

@@ -1,5 +1,5 @@
-import { HealthScreen } from "../components/health-screen";
+import { CatalogScreen } from "../components/catalog-screen";
 
 export default function CustomerHome(): React.JSX.Element {
-  return <HealthScreen />;
+  return <CatalogScreen />;
 }

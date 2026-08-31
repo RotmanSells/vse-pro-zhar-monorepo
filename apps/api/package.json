@@ -4,22 +4,25 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @vse-pro-zhar/contracts build && pnpm run dev:root",
+    "dev": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/database build && pnpm run dev:root",
     "dev:root": "tsx watch src/server.ts",
-    "build": "pnpm --filter @vse-pro-zhar/contracts build && pnpm run build:root",
+    "build": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/database build && pnpm run build:root",
     "build:root": "tsc --project tsconfig.build.json",
     "start": "pnpm --filter @vse-pro-zhar/contracts build && pnpm run start:root",
     "start:root": "node dist/server.js",
-    "typecheck": "pnpm --filter @vse-pro-zhar/contracts build && pnpm run typecheck:root",
+    "typecheck": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/database build && pnpm run typecheck:root",
     "typecheck:root": "tsc --project tsconfig.json --noEmit",
     "lint": "eslint src test --max-warnings 0",
-    "test": "pnpm --filter @vse-pro-zhar/contracts build && pnpm run test:root",
+    "test": "pnpm --filter @vse-pro-zhar/contracts build && pnpm --filter @vse-pro-zhar/database build && pnpm run test:root",
     "test:root": "vitest run"
   },
   "dependencies": {
-    "@vse-pro-zhar/contracts": "workspace:*",
     "@fastify/cors": "11.3.0",
+    "@fastify/multipart": "^10.1.1",
+    "@vse-pro-zhar/contracts": "workspace:*",
+    "@vse-pro-zhar/database": "workspace:*",
     "fastify": "5.12.1",
+    "sharp": "^0.35.4",
     "zod": "4.5.4"
   },
   "devDependencies": {
