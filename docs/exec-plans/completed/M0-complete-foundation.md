@@ -1,6 +1,6 @@
 # M0 — Complete Project Foundation
 
-Status: in_progress
+Status: completed
 Milestone: M0
 Depends on: M0.1 — Workspace Foundation; M0.2 — API + Shared Contracts Foundation
 
@@ -62,11 +62,11 @@ Catalog, products, images, search, favorites, authentication, OTP, cart, checkou
 - [x] API CORS is explicit, runtime-validated and safe for production configuration.
 - [x] Database package provides PostgreSQL/Drizzle pool, migrations, config validation, testable probe and close behavior without business tables.
 - [x] `pnpm dev` starts API, Customer and Admin with documented URLs.
-- [x] CI workflow covers PRs and pushes to `main`/task branches, including PostgreSQL integration checks; remote run is pending push.
+- [x] CI workflow covers PRs and pushes to `main`/task branches, including PostgreSQL integration checks; remote run `33389271875` passed.
 - [x] Foundation E2E passes for Customer → API and Admin → API.
 - [x] Security and scope audit finds no secrets, WebView strategy, direct frontend DB/provider access, fake production data or business functionality.
-- [x] Applicable documentation reflects the implementation; final branch/remote verification remains pending.
-- [ ] Final branch is committed, clean and pushed if the remote is available; `main` is not merged.
+- [x] Applicable documentation reflects the implementation.
+- [x] Final branch is committed, clean and pushed; `main` is not merged.
 
 ## Verification
 
@@ -90,7 +90,7 @@ Additionally run the real PostgreSQL integration checks and foundation browser E
 - [x] Реализовать database foundation и migrations.
 - [x] Настроить CORS, root dev/build, CI и foundation E2E.
 - [x] Обновить применимую документацию и выполнить доступные локальные проверки.
-- [ ] Создать итоговый commit и push branch, если remote доступен.
+- [x] Создать итоговые commits и push branch; `main` не merged.
 
 ## Discoveries
 
@@ -100,6 +100,8 @@ Additionally run the real PostgreSQL integration checks and foundation browser E
 - Порт `8081` занят внешним Expo-процессом в текущем окружении, поэтому Customer закреплён на `8082`; API и Admin оставлены на `3000` и `5173`.
 - React StrictMode в Admin выявил lifecycle bug: после первого dev-effect cleanup состояние оставалось loading; mount ref теперь явно восстанавливается перед каждым effect cycle.
 - Drizzle Kit на пустой M0 schema генерирует только `drizzle/meta/_journal.json`; runtime migrator создаёт собственную metadata table и не создаёт business tables.
+- Первый remote CI run выявил, что Admin typecheck зависел от локального `contracts/dist`; Admin получил тот же explicit contracts build boundary, что API и Customer.
+- Финальный remote GitHub Actions run `33389271875` прошёл на dedicated PostgreSQL service и не обнаружил дополнительных проблем.
 
 ## Decision Log
 
@@ -108,7 +110,29 @@ Additionally run the real PostgreSQL integration checks and foundation browser E
 - Для Customer оставлен минимальный Expo Router dependency set, дополненный official SDK 57 native-compatible peer versions; gesture/reanimated/worklets добавлены только для корректной Expo Router/native target compatibility.
 - `pnpm dev` использует pnpm recursive parallel execution без отдельного task runner; PostgreSQL не включён в dev command, поскольку health foundation его не требует.
 - CORS development defaults включают только локальные Customer/Admin origins; production требует явный `CORS_ALLOWED_ORIGINS`.
+- Первый выбранный Customer port `8081` был занят другим локальным Expo-процессом; стабильный foundation port закреплён на `8082` и отражён в CORS/docs/E2E.
 
 ## Outcome
 
-Заполняется после выполнения acceptance criteria и доступных verification checks.
+M0.3–M0.6 реализованы в branch `task/m0-complete-foundation`.
+
+- Customer: Expo SDK 57 + React Native 0.86.3 + React Native Web + Expo Router, universal `ios/android/web` config, web health screen, API boundary, Zod validation and controlled retry/error states.
+- Admin: React + Vite web app, health screen, API boundary, Zod validation and controlled retry/error states.
+- API: explicit runtime-validated CORS allowlist with production fail-safe configuration.
+- Database: PostgreSQL `pg` pool, Drizzle ORM/Kit, validated `DATABASE_URL`, exported package boundary, empty M0 schema, Drizzle migration metadata and real probe/integration tests.
+- Tooling: root `pnpm dev`, production builds, Playwright foundation smoke and GitHub Actions PostgreSQL CI.
+
+Verification completed:
+
+- `pnpm install --frozen-lockfile`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm typecheck`: PASS.
+- `DATABASE_URL=... pnpm test`: PASS — DB 5/5, API 9/9, Customer 3/3, Admin 3/3.
+- `pnpm build`: PASS — API, Admin Vite and Customer Expo web export.
+- `pnpm dev` smoke: PASS — API `3000`, Customer `localhost:8082`, Admin `127.0.0.1:5173`.
+- `pnpm e2e`: PASS — Customer and Admin `Connected`, no page or console errors.
+- Native config check: PASS — Expo `ios`, `android`, `web`; Metro web bundler; Expo Router plugin.
+- Frontend secret/scope audit: PASS — no `DATABASE_URL`/PostgreSQL in frontend dist, no direct DB/provider access, WebView wrapper or business tables/features.
+- Remote CI `33389271875`: PASS — migrations, real PostgreSQL integration, tests, builds and E2E.
+
+Known non-blocking note: GitHub reports a deprecation warning because current `actions/*@v4` wrappers target Node 20 while the job runs on Node 24; it does not fail the workflow.

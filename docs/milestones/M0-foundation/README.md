@@ -1,6 +1,6 @@
 # M0 — Project Foundation
 
-Status: in_progress — implementation complete candidate; remote CI verification pending
+Status: completed
 
 ## Цель
 
@@ -15,9 +15,9 @@ M0 создаёт запускаемые границы приложений, о
 - [x] M0.3 — Customer Web Foundation
 - [x] M0.4 — Admin Web Foundation
 - [x] M0.5 — Database Foundation
-- [x] M0.6 — CI + Foundation Verification (workflow configured; final remote result pending)
+- [x] M0.6 — CI + Foundation Verification
 
-Фактический результат M0.3–M0.6 зафиксирован в [active execution plan](../../exec-plans/active/M0-complete-foundation.md) до завершения локальной и remote verification.
+Фактический результат M0.3–M0.6 зафиксирован в [completed execution plan](../../exec-plans/completed/M0-complete-foundation.md).
 
 ## High-level Definition of Done
 

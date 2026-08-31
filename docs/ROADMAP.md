@@ -1,6 +1,6 @@
 # Дорожная карта
 
-- M0 Foundation — completed candidate: workspace, API/contracts, Customer Web, Admin Web, PostgreSQL/Drizzle, CI and foundation verification.
+- M0 Foundation — completed: workspace, API/contracts, Customer Web, Admin Web, PostgreSQL/Drizzle, CI and foundation verification.
 - M1 Categories
 - M2 Products + Images
 - M3 iiko mapping + availability
