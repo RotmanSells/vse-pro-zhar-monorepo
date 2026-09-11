@@ -34,6 +34,9 @@ describe("customer authentication contracts", () => {
 
   it("rejects unknown fields and invalid birth dates", () => {
     expect(() =>
+      CustomerIdentifyRequestSchema.parse({ phone: "+79991234567" })
+    ).toThrow();
+    expect(() =>
       CustomerIdentifyRequestSchema.parse({
         phone: "+79991234567",
         name: "Анна",

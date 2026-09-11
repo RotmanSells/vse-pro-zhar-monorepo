@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { E2E_API_URL, E2E_ADMIN_URL, E2E_CUSTOMER_URL } from "./urls";
 import { loginAdmin } from "./admin-auth";
+import { completeCustomerFirstEntry } from "./customer-auth";
 
 test("Admin creates a fixed discount and Customer sees the confirmed insufficient-balance state", async ({ browser, page, request }) => {
   const availability = await request.get(`${E2E_API_URL}/catalog`);
@@ -25,11 +26,7 @@ test("Admin creates a fixed discount and Customer sees the confirmed insufficien
     const customer = await browser.newPage();
     try {
       await customer.goto(E2E_CUSTOMER_URL, { waitUntil: "domcontentloaded" });
-      await customer.getByRole("button", { name: /Добавить в корзину/u }).first().click();
-      const dialog = customer.getByTestId("customer-identify-modal");
-      await dialog.getByLabel("Номер телефона").fill("8 (999) 555-13-55");
-      await dialog.getByRole("button", { name: "Сохранить и добавить" }).click();
-      await expect(customer.getByTestId("customer-identify-success")).toBeVisible();
+      await completeCustomerFirstEntry(customer, { phone: "8 (999) 555-13-55" });
       await customer.getByRole("button", { name: "Открыть мою лояльность" }).click();
       await expect(customer.getByText("E2E скидка 300 ₽", { exact: true }).first()).toBeVisible();
       await expect(customer.getByText("Недостаточно угольков", { exact: true }).first()).toBeVisible();

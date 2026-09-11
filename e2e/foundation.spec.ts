@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { E2E_ADMIN_URL, E2E_API_URL, E2E_CUSTOMER_URL } from "./urls";
 import { loginAdmin } from "./admin-auth";
+import { completeCustomerFirstEntry } from "./customer-auth";
 
 async function expectCatalogSurface(
   page: Page,
@@ -27,6 +28,7 @@ async function expectCatalogSurface(
 
   await page.goto(url, { waitUntil: "domcontentloaded" });
   if (url === E2E_ADMIN_URL) await loginAdmin(page);
+  if (url === E2E_CUSTOMER_URL) await completeCustomerFirstEntry(page);
   await expect(expected(page)).toBeVisible();
   expect(pageErrors).toEqual([]);
   expect(failedNonMediaRequests).toEqual([]);

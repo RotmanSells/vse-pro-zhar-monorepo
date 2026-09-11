@@ -1,17 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Text, TextInput, View } from "react-native";
 import { LoggedPressable as Pressable } from "../debug/pressable";
+import { debugLog } from "../debug/logger";
 
-import { formatRussianPhoneInput } from "@vse-pro-zhar/contracts";
+import {
+  CustomerBirthDateSchema,
+  formatRussianPhoneInput
+} from "@vse-pro-zhar/contracts";
 
 export interface CustomerIdentifyValues {
+  readonly name: string;
   readonly phone: string;
+  readonly birthDate: string | null;
 }
 
 export interface CustomerIdentifyModalProps {
   readonly visible: boolean;
   readonly busy?: boolean;
-  readonly mode?: "add" | "checkout" | "loyalty" | "wheel" | "profile";
+  readonly mode?: "add" | "checkout" | "loyalty" | "wheel" | "profile" | "onboarding";
   readonly errorMessage: string | null;
   readonly onCancel: () => void;
   readonly onSubmit: (values: CustomerIdentifyValues) => Promise<boolean>;
@@ -25,31 +31,95 @@ export function CustomerIdentifyModal({
   onCancel,
   onSubmit
 }: CustomerIdentifyModalProps): React.JSX.Element {
+  const isFirstEntry = mode === "onboarding";
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState(() => formatRussianPhoneInput(""));
+  const [birthDateInput, setBirthDateInput] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const wasVisibleRef = useRef(false);
 
   useEffect(() => {
     if (!visible) {
+      setName("");
       setPhone(formatRussianPhoneInput(""));
+      setBirthDateInput("");
       setValidationError(null);
       setSuccess(false);
     }
   }, [visible]);
 
+  useEffect(() => {
+    if (visible && !wasVisibleRef.current) debugLog("ui.modal.open", { modal: "customer-identify", mode });
+    if (!visible && wasVisibleRef.current) debugLog("ui.modal.close", { modal: "customer-identify", mode });
+    wasVisibleRef.current = visible;
+  }, [mode, visible]);
+
+  const normalizeBirthDate = (value: string): string | null => {
+    const compact = value.trim();
+    if (compact === "") return null;
+    if (/^\d{2}\.\d{2}\.\d{4}$/u.test(compact)) {
+      const [day, month, year] = compact.split(".");
+      return `${year}-${month}-${day}`;
+    }
+    return compact;
+  };
+
+  const formatBirthDateInput = (value: string): string => {
+    const digits = value.replace(/\D/gu, "").slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
+  };
+
   const submit = async (): Promise<void> => {
     if (busy) return;
+    if (name.trim().length === 0) {
+      debugLog("ui.validation.error", { surface: "customer-identify", field: "name" });
+      setValidationError("Укажите имя");
+      return;
+    }
+    if (name.trim().length > 160) {
+      debugLog("ui.validation.error", { surface: "customer-identify", field: "name" });
+      setValidationError("Имя слишком длинное");
+      return;
+    }
     if (phone.replace(/\D/gu, "").length !== 11) {
+      debugLog("ui.validation.error", { surface: "customer-identify", field: "phone" });
       setValidationError("Укажите номер телефона");
       return;
     }
+    const birthDate = normalizeBirthDate(birthDateInput);
+    if (birthDate !== null && !CustomerBirthDateSchema.safeParse(birthDate).success) {
+      debugLog("ui.validation.error", { surface: "customer-identify", field: "birthDate" });
+      setValidationError("Укажите корректную дату рождения или оставьте поле пустым");
+      return;
+    }
     setValidationError(null);
-    const saved = await onSubmit({ phone: phone.trim() });
+    const saved = await onSubmit({ name: name.trim(), phone: phone.trim(), birthDate });
     if (saved) setSuccess(true);
   };
 
+  const submitLabel = isFirstEntry
+    ? "Начать пользоваться приложением"
+    : mode === "checkout"
+      ? "Сохранить и продолжить"
+      : mode === "loyalty"
+        ? "Открыть лояльность"
+        : mode === "wheel"
+          ? "Открыть рулетку"
+          : mode === "profile"
+            ? "Открыть профиль"
+            : "Сохранить и добавить";
+
   return (
-    <Modal accessibilityViewIsModal animationType="fade" transparent visible={visible}>
+    <Modal
+      accessibilityViewIsModal
+      animationType="fade"
+      onRequestClose={() => { if (!isFirstEntry) onCancel(); }}
+      transparent
+      visible={visible}
+    >
       <View style={styles.backdrop}>
         <View accessibilityViewIsModal testID="customer-identify-modal" style={styles.card}>
           {success ? (
@@ -73,7 +143,9 @@ export function CustomerIdentifyModal({
           ) : (
             <>
               <Text accessibilityRole="header" style={styles.title}>
-                {mode === "checkout"
+                {isFirstEntry
+                  ? "Создайте профиль"
+                  : mode === "checkout"
                   ? "Заполните данные перед оформлением"
                   : mode === "loyalty"
                     ? "Заполните данные для программы лояльности"
@@ -83,7 +155,21 @@ export function CustomerIdentifyModal({
                       ? "Заполните данные для профиля"
                     : "Заполните данные перед добавлением"}
               </Text>
-              <Text style={styles.description}>Введите номер телефона, чтобы продолжить.</Text>
+              <Text style={styles.description}>
+                {isFirstEntry
+                  ? "Имя и номер нужны, чтобы сохранить профиль, корзину и историю заказов. Дата рождения — по желанию."
+                  : "Введите имя и номер телефона, чтобы продолжить."}
+              </Text>
+              <TextInput
+                accessibilityLabel="Имя"
+                autoCapitalize="words"
+                autoFocus={isFirstEntry}
+                editable={!busy}
+                onChangeText={setName}
+                placeholder="Ваше имя"
+                style={styles.input}
+                value={name}
+              />
               <TextInput
                 accessibilityLabel="Номер телефона"
                 autoComplete="tel"
@@ -94,30 +180,31 @@ export function CustomerIdentifyModal({
                 style={styles.input}
                 value={phone}
               />
+              <TextInput
+                accessibilityLabel="Дата рождения (необязательно)"
+                editable={!busy}
+                keyboardType="number-pad"
+                onChangeText={(value) => setBirthDateInput(formatBirthDateInput(value))}
+                placeholder="Дата рождения — ДД.ММ.ГГГГ (необязательно)"
+                style={styles.input}
+                value={birthDateInput}
+              />
               {validationError !== null || errorMessage !== null ? (
                 <Text accessibilityRole="alert" style={styles.error}>
                   {validationError ?? errorMessage}
                 </Text>
               ) : null}
               <View style={styles.actions}>
-                <Pressable accessibilityRole="button" disabled={busy} onPress={onCancel} style={styles.cancelButton}>
-                  <Text style={styles.cancelButtonText}>Отмена</Text>
-                </Pressable>
-                <Pressable accessibilityRole="button" disabled={busy} onPress={() => void submit()} style={styles.primaryButton}>
+                {!isFirstEntry ? (
+                  <Pressable accessibilityLabel="Отмена" accessibilityRole="button" disabled={busy} onPress={onCancel} style={styles.cancelButton}>
+                    <Text style={styles.cancelButtonText}>Отмена</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable accessibilityLabel={submitLabel} accessibilityRole="button" disabled={busy} onPress={() => void submit()} style={styles.primaryButton}>
                   {busy ? (
                     <ActivityIndicator color="#ffffff" size="small" />
                   ) : (
-                    <Text style={styles.primaryButtonText}>
-                      {mode === "checkout"
-                        ? "Сохранить и продолжить"
-                      : mode === "loyalty"
-                          ? "Открыть лояльность"
-                          : mode === "wheel"
-                            ? "Открыть рулетку"
-                          : mode === "profile"
-                            ? "Открыть профиль"
-                          : "Сохранить и добавить"}
-                    </Text>
+                    <Text style={styles.primaryButtonText}>{submitLabel}</Text>
                   )}
                 </Pressable>
               </View>

@@ -88,7 +88,12 @@ export class CustomerAuthService {
     const now = this.now();
     const expiresAt = new Date(now.getTime() + this.config.sessionTtlMs);
     const lookup = await this.repository.upsertCustomerAndCreateSession(
-      { phone, name: input.name?.trim() ?? "", birthDate: input.birthDate ?? null },
+      {
+        phone,
+        name: input.name.trim(),
+        birthDate: input.birthDate ?? null,
+        preserveBirthDate: input.birthDate === undefined
+      },
       { tokenHash: hashSessionToken(token, this.config.sessionSecret), expiresAt },
       now
     );

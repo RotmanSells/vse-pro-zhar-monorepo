@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { E2E_API_URL, E2E_CUSTOMER_URL } from "./urls";
+import { completeCustomerFirstEntry } from "./customer-auth";
 
 test("Customer Profile is server-backed, truthful and responsive", async ({ page, request }) => {
   const availability = await request.get(`${E2E_API_URL}/catalog`);
@@ -8,12 +9,8 @@ test("Customer Profile is server-backed, truthful and responsive", async ({ page
   expect(availability.status()).toBe(200);
 
   await page.goto(E2E_CUSTOMER_URL, { waitUntil: "domcontentloaded" });
+  await completeCustomerFirstEntry(page, { phone: "8 (999) 555-14-01" });
   await page.getByRole("tab", { name: "Профиль", exact: true }).click();
-  const dialog = page.getByTestId("customer-identify-modal");
-  if (await dialog.isVisible()) {
-    await dialog.getByLabel("Номер телефона").fill("8 (999) 555-14-01");
-    await dialog.getByRole("button", { name: "Открыть профиль" }).click();
-  }
 
   await expect(page.getByTestId("profile-head")).toBeVisible();
   await expect(page.getByText("До след. награды")).toBeVisible();
@@ -40,8 +37,4 @@ test("Customer Profile is server-backed, truthful and responsive", async ({ page
     expect(touchViolations).toEqual([]);
   }
 
-  await page.getByRole("button", { name: "Выйти из аккаунта" }).click();
-  await expect(page.getByRole("tab", { name: "Профиль", exact: true })).toBeVisible();
-  await page.getByRole("tab", { name: "Профиль", exact: true }).click();
-  await expect(page.getByTestId("customer-identify-modal")).toBeVisible();
 });

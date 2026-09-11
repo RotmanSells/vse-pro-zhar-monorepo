@@ -9,7 +9,7 @@ const DEFAULT_CORS_ALLOWED_ORIGINS = [
 ] as const;
 const DEVELOPMENT_SESSION_SECRET =
   "development-only-session-secret-change-me-32-bytes";
-const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 365;
 const DEFAULT_STAFF_SESSION_TTL_SECONDS = 60 * 60 * 8;
 
 const OriginSchema = z

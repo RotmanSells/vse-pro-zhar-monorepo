@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { E2E_ADMIN_URL, E2E_API_URL, E2E_CUSTOMER_URL } from "./urls";
 import { loginAdmin } from "./admin-auth";
+import { completeCustomerFirstEntry } from "./customer-auth";
 
 test("Admin publishes and hides a product seen by Customer", async ({
   browser,
@@ -44,6 +45,7 @@ test("Admin publishes and hides a product seen by Customer", async ({
 
   const customer = await browser.newPage();
   await customer.goto(E2E_CUSTOMER_URL, { waitUntil: "domcontentloaded" });
+  await completeCustomerFirstEntry(customer);
   await expect(customer.getByText(productName)).toBeVisible();
   const search = customer.getByLabel("Поиск блюд");
   await search.fill(productName.slice(0, 18));

@@ -2,15 +2,13 @@ import { expect, test } from "@playwright/test";
 
 import { E2E_ADMIN_URL, E2E_CUSTOMER_URL } from "./urls";
 import { loginAdmin } from "./admin-auth";
+import { completeCustomerFirstEntry } from "./customer-auth";
 
 test("Customer opens server-owned Wheel without demo mode or client rewards", async ({ page }) => {
   await page.goto(E2E_CUSTOMER_URL, { waitUntil: "domcontentloaded" });
+  await completeCustomerFirstEntry(page, { phone: "8 (999) 555-14-02" });
   await expect(page.getByText("Сезон гриля открыт!")).toBeVisible();
   await page.getByRole("tab", { name: "Рулетка" }).click();
-  const dialog = page.getByTestId("customer-identify-modal");
-  await expect(dialog).toBeVisible();
-  await dialog.getByLabel("Номер телефона").fill("8 (999) 555-14-01");
-  await dialog.getByRole("button", { name: "Открыть рулетку" }).click();
   await expect(page.getByText("🎡 Поймай искру", { exact: true })).toBeVisible();
   await expect(page.getByText(/Сделайте заказ от/u)).toBeVisible();
   await expect(page.getByText(/Демо/u)).toHaveCount(0);

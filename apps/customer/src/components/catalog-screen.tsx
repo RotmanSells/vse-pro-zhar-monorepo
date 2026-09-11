@@ -219,7 +219,7 @@ export function CatalogScreen({
   const [storageError, setStorageError] = useState<string | null>(null);
   const [authState, setAuthState] = useState<AuthState>({ status: "unknown" });
   const [identifyModalOpen, setIdentifyModalOpen] = useState(false);
-  const [identifyMode, setIdentifyMode] = useState<"add" | "checkout" | "loyalty" | "wheel" | "profile">("add");
+  const [identifyMode, setIdentifyMode] = useState<"add" | "checkout" | "loyalty" | "wheel" | "profile" | "onboarding">("add");
   const [identifySuccess, setIdentifySuccess] = useState(false);
   const authControllerRef = useRef<ReturnType<typeof createAuthRequestController> | null>(null);
   const addGateRef = useRef(createAddGateController());
@@ -228,6 +228,7 @@ export function CatalogScreen({
   const loyaltyIntentRef = useRef(false);
   const rouletteIntentRef = useRef(false);
   const profileIntentRef = useRef(false);
+  const initialAuthResolvedRef = useRef(false);
   const controllerRef = useRef<CatalogRequestController | null>(null);
   const cartItemsRef = useRef<CartItem[]>([]);
 
@@ -255,6 +256,21 @@ export function CatalogScreen({
       if (authControllerRef.current === controller) authControllerRef.current = null;
     };
   }, [customerAuthClient]);
+
+  useEffect(() => {
+    if (authState.status === "identified") {
+      initialAuthResolvedRef.current = true;
+      return;
+    }
+    if (
+      !initialAuthResolvedRef.current &&
+      (authState.status === "anonymous" || authState.status === "error")
+    ) {
+      initialAuthResolvedRef.current = true;
+      setIdentifyMode("onboarding");
+      setIdentifyModalOpen(true);
+    }
+  }, [authState.status]);
 
   useEffect(() => {
     let mounted = true;
@@ -538,7 +554,7 @@ export function CatalogScreen({
     rouletteIntentRef.current = false;
     profileIntentRef.current = false;
     setIdentifyModalOpen(false);
-    setIdentifySuccess(true);
+    setIdentifySuccess(pending !== null);
     if (shouldOpenCheckout && cartItemsRef.current.length > 0) setCheckoutOpen(true);
     if (shouldOpenOrders) setOrdersOpen(true);
     if (shouldOpenLoyalty) setLoyaltyOpen(true);
@@ -570,12 +586,6 @@ export function CatalogScreen({
     rouletteIntentRef.current = false;
     profileIntentRef.current = false;
     setIdentifyModalOpen(false);
-  }, []);
-
-  const logout = useCallback(async (): Promise<void> => {
-    if (authControllerRef.current === null) return;
-    await authControllerRef.current.logout();
-    setProfileOpen(false);
   }, []);
 
   const requireProfileAuthentication = useCallback((): void => {
@@ -685,7 +695,6 @@ export function CatalogScreen({
         customer={authState.customer}
         notificationsClient={customerNotificationsClient}
         onBack={() => setProfileOpen(false)}
-        onLogout={logout}
         onRequireAuthentication={requireProfileAuthentication}
         onOpenOrders={() => {
           setProfileOpen(false);
@@ -750,7 +759,7 @@ export function CatalogScreen({
               <Pressable accessibilityLabel="Открыть мою лояльность" accessibilityRole="button" onPress={() => void openLoyalty()} style={styles.headerNavButton}>
                 <Text style={styles.headerNavText}>Угольки</Text>
               </Pressable>
-              <Pressable accessibilityLabel="Выйти из профиля" accessibilityRole="button" onPress={logout} style={styles.headerNavButton}>
+              <Pressable accessibilityLabel="Открыть мой профиль" accessibilityRole="button" onPress={() => void openProfile()} style={styles.headerNavButton}>
                 <Text numberOfLines={1} style={styles.headerNavText}>{authState.customer.name}</Text>
               </Pressable>
             </View>

@@ -16,7 +16,7 @@ describe("loadConfig", () => {
       host: "127.0.0.1",
       port: 3100,
       sessionSecret: "development-only-session-secret-change-me-32-bytes",
-      sessionTtlMs: 2_592_000_000,
+        sessionTtlMs: 31_536_000_000,
       staffSessionTtlMs: 28_800_000,
       corsAllowedOrigins: [
         "http://127.0.0.1:8082",
@@ -33,7 +33,7 @@ describe("loadConfig", () => {
       host: "127.0.0.1",
       port: 3000,
       sessionSecret: "development-only-session-secret-change-me-32-bytes",
-      sessionTtlMs: 2_592_000_000,
+      sessionTtlMs: 31_536_000_000,
       staffSessionTtlMs: 28_800_000,
       corsAllowedOrigins: [
         "http://127.0.0.1:8082",

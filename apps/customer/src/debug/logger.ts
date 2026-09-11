@@ -16,9 +16,16 @@ export function debugLog(event: string, payload: DebugLogPayload = {}): void {
 
 export function debugError(event: string, error: unknown, payload: DebugLogPayload = {}): void {
   if (!isEnabled()) return;
+  const errorMessage = error instanceof Error ? error.message.trim() : "";
+  const safeErrorMessage = /network request failed|failed to fetch|fetch failed|load failed/iu.test(errorMessage)
+    ? errorMessage.slice(0, 120)
+    : error instanceof Error && error.name === "AbortError"
+      ? "Request aborted"
+      : null;
   debugLog(event, {
     ...payload,
-    error: error instanceof Error ? error.name : "unknown_error"
+    error: error instanceof Error ? error.name : "unknown_error",
+    errorMessage: safeErrorMessage
   });
 }
 

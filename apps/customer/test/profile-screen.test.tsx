@@ -82,7 +82,7 @@ describe("Customer Profile screen", () => {
     const onTabSelect = vi.fn();
     let renderer: ReactTestRenderer | null = null;
     await act(async () => {
-      renderer = create(<ProfileScreen cartItemCount={0} client={client} customer={profile.customer} onBack={vi.fn()} onLogout={vi.fn(async () => undefined)} onOpenOrders={onOpenOrders} onTabSelect={onTabSelect} />);
+      renderer = create(<ProfileScreen cartItemCount={0} client={client} customer={profile.customer} onBack={vi.fn()} onOpenOrders={onOpenOrders} onTabSelect={onTabSelect} />);
       await flush();
     });
     if (renderer === null) throw new Error("Renderer was not created");
@@ -105,12 +105,12 @@ describe("Customer Profile screen", () => {
     expect(onOpenOrders).toHaveBeenCalledTimes(1);
   });
 
-  it("shows retryable error and keeps logout failure visible", async () => {
+  it("shows a retryable profile error", async () => {
     let rejectProfile: ((error: unknown) => void) | undefined;
     const client: ProfileClient = { getProfile: async () => new Promise((_resolve, reject) => { rejectProfile = reject; }) };
     let renderer: ReactTestRenderer | null = null;
     await act(async () => {
-      renderer = create(<ProfileScreen cartItemCount={0} client={client} customer={profile.customer} onBack={vi.fn()} onLogout={vi.fn(async () => { throw new Error("logout failed"); })} onOpenOrders={vi.fn()} onTabSelect={vi.fn()} />);
+      renderer = create(<ProfileScreen cartItemCount={0} client={client} customer={profile.customer} onBack={vi.fn()} onOpenOrders={vi.fn()} onTabSelect={vi.fn()} />);
       await flush();
     });
     if (renderer === null) throw new Error("Renderer was not created");
@@ -120,19 +120,15 @@ describe("Customer Profile screen", () => {
     expect(mountedRenderer.root.findByProps({ testID: "profile-error" })).toBeDefined();
   });
 
-  it("keeps a failed server logout actionable", async () => {
+  it("does not expose a logout action that can terminate the persistent session", async () => {
     const client: ProfileClient = { getProfile: vi.fn(async () => profile) };
     let renderer: ReactTestRenderer | null = null;
     await act(async () => {
-      renderer = create(<ProfileScreen cartItemCount={0} client={client} customer={profile.customer} onBack={vi.fn()} onLogout={vi.fn(async () => { throw new Error("logout failed"); })} onOpenOrders={vi.fn()} onTabSelect={vi.fn()} />);
+      renderer = create(<ProfileScreen cartItemCount={0} client={client} customer={profile.customer} onBack={vi.fn()} onOpenOrders={vi.fn()} onTabSelect={vi.fn()} />);
       await flush();
     });
     if (renderer === null) throw new Error("Renderer was not created");
     const mountedRenderer = renderer as ReactTestRenderer;
-    await act(async () => {
-      button(mountedRenderer, "Выйти из аккаунта").props["onPress"]();
-      await flush();
-    });
-    expect(text(mountedRenderer.root.find((node) => node.props["accessibilityRole"] === "alert"))).toContain("Не удалось завершить сессию");
+    expect(mountedRenderer.root.findAll((node) => node.props["accessibilityLabel"] === "Выйти из аккаунта")).toHaveLength(0);
   });
 });

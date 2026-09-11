@@ -95,6 +95,9 @@ describe("Customer identification add gate", () => {
     });
     if (renderer === null) throw new Error("Renderer was not created");
     const mountedRenderer = renderer as ReactTestRenderer;
+    const firstEntryModal = mountedRenderer.root.find((node: ReactTestInstance) => String(node.type) === "Modal");
+    expect(firstEntryModal.props["visible"]).toBe(true);
+    expect(text(mountedRenderer.root)).toContain("Создайте профиль");
 
     await act(async () => {
       button(mountedRenderer, `Добавить в корзину ${product.name}`).props["onPress"]();
@@ -105,7 +108,9 @@ describe("Customer identification add gate", () => {
     expect(modal.props["visible"]).toBe(true);
 
     const phoneInput = mountedRenderer.root.find((node: ReactTestInstance) => node.props["accessibilityLabel"] === "Номер телефона");
+    const nameInput = mountedRenderer.root.find((node: ReactTestInstance) => node.props["accessibilityLabel"] === "Имя");
     await act(async () => {
+      nameInput.props["onChangeText"]("Анна");
       phoneInput.props["onChangeText"]("8 (999) 123-45-67");
       await flush();
     });
@@ -117,7 +122,9 @@ describe("Customer identification add gate", () => {
 
     expect(identify).toHaveBeenCalledTimes(1);
     expect(identify).toHaveBeenCalledWith({
-      phone: "+7 (999) 123-45-67"
+      name: "Анна",
+      phone: "+7 (999) 123-45-67",
+      birthDate: null
     }, expect.objectContaining({ signal: expect.anything() }));
     expect(JSON.parse(storage.value() ?? "{}") as unknown).toEqual({
       version: 1,

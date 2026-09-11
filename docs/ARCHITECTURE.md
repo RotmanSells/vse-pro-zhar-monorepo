@@ -174,7 +174,7 @@ anonymous add
     ↓
 CustomerIdentifyModal (phone + name, optional birth date)
     ↓
-POST /auth/identify (phone-only, Web/native) → PostgreSQL upsert + opaque session
+POST /auth/identify (name + phone + optional birth date, Web/native) → PostgreSQL upsert + opaque session
     ↓
 one pending { productId, quantity } action → local guest cart
 ```

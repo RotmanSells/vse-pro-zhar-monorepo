@@ -454,7 +454,7 @@ describe("orders API", () => {
     expect(revoked.statusCode).toBe(401);
 
     const expiredCookie = await identify(app, "+79991234568", "Борис");
-    currentNow = new Date("2027-01-01T07:00:00.000Z");
+    currentNow = new Date("2027-10-01T07:00:00.000Z");
     const expired = await app.inject({
       method: "POST",
       url: "/orders",

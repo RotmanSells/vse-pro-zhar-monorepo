@@ -27,7 +27,6 @@ export interface ProfileScreenProps {
   readonly onRequireAuthentication?: () => void;
   readonly onOpenOrders: () => void;
   readonly onTabSelect: (tab: CustomerTab) => void;
-  readonly onLogout: () => Promise<void>;
   readonly cartItemCount: number;
 }
 
@@ -154,10 +153,9 @@ function LoadingState(): React.JSX.Element {
   return <View style={styles.stateCard} testID="profile-loading"><ActivityIndicator color="#ff5e3a" size="small" /><Text style={styles.stateText}>Загружаем профиль…</Text></View>;
 }
 
-export function ProfileScreen({ customer, client, notificationsClient, onBack, onOpenOrders, onRequireAuthentication, onTabSelect, onLogout, cartItemCount }: ProfileScreenProps): React.JSX.Element {
+export function ProfileScreen({ customer, client, notificationsClient, onBack, onOpenOrders, onRequireAuthentication, onTabSelect, cartItemCount }: ProfileScreenProps): React.JSX.Element {
   useEffect(() => screenTrace("profile"), []);
   const [state, setState] = useState<ProfileRequestState>({ status: "loading" });
-  const [logoutState, setLogoutState] = useState<"idle" | "loading" | "error">("idle");
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const controllerRef = useRef<ProfileRequestController | null>(null);
@@ -171,17 +169,6 @@ export function ProfileScreen({ customer, client, notificationsClient, onBack, o
       if (controllerRef.current === controller) controllerRef.current = null;
     };
   }, [client]);
-
-  const logout = async (): Promise<void> => {
-    if (logoutState === "loading") return;
-    setLogoutState("loading");
-    try {
-      await onLogout();
-      setLogoutState("idle");
-    } catch {
-      setLogoutState("error");
-    }
-  };
 
   const response = state.status === "success" ? state.response : null;
   const pushSetting = response?.settings.pushNotifications;
@@ -258,10 +245,6 @@ export function ProfileScreen({ customer, client, notificationsClient, onBack, o
 
               <HistoryCard onOpenOrders={onOpenOrders} orders={response.recentOrders} />
 
-              <Pressable accessibilityLabel="Выйти из аккаунта" accessibilityRole="button" disabled={logoutState === "loading"} onPress={() => void logout()} style={styles.logoutButton}>
-                {logoutState === "loading" ? <ActivityIndicator color="#d84428" size="small" /> : <Text style={styles.logoutText}>Выйти из аккаунта</Text>}
-              </Pressable>
-              {logoutState === "error" ? <Text accessibilityRole="alert" style={styles.logoutError}>Не удалось завершить сессию на Backend. Повторите попытку.</Text> : null}
             </>
           ) : null}
         </ScrollView>
@@ -326,9 +309,6 @@ const styles = {
   historyEmpty: { borderTopColor: "#ece8e2", borderTopWidth: 1, paddingHorizontal: 16, paddingVertical: 16 },
   historyEmptyText: { color: "#4e4741", fontSize: 13, fontWeight: "700" },
   historyEmptyHint: { color: "#8a8580", fontSize: 11, marginTop: 4 },
-  logoutButton: { alignItems: "center", backgroundColor: "#ffffff", borderColor: "#ffd6cc", borderRadius: 14, borderWidth: 1.5, justifyContent: "center", minHeight: 52, paddingHorizontal: 16, paddingVertical: 13 },
-  logoutText: { color: "#d84428", fontSize: 14, fontWeight: "900" },
-  logoutError: { color: "#b3261e", fontSize: 12, lineHeight: 18, marginTop: 10, textAlign: "center" },
   unavailableNotice: { backgroundColor: "#fff5e8", borderRadius: 14, marginBottom: 18, padding: 14 },
   unavailableNoticeTitle: { color: "#89531d", fontSize: 13, fontWeight: "900" },
   unavailableNoticeText: { color: "#8a6a4b", fontSize: 12, lineHeight: 18, marginTop: 4 },

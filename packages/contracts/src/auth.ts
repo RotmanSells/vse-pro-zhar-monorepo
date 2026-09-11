@@ -23,7 +23,7 @@ export type CustomerBirthDate = z.infer<typeof CustomerBirthDateSchema>;
 export const CustomerIdentifyRequestSchema = z
   .object({
     phone: CustomerPhoneInputSchema,
-    name: CustomerNameSchema.optional(),
+    name: CustomerNameSchema,
     birthDate: CustomerBirthDateSchema.nullable().optional()
   })
   .strict();

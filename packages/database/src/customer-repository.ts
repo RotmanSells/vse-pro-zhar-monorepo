@@ -12,6 +12,7 @@ export interface CustomerUpsertInput {
   readonly phone: string;
   readonly name: string;
   readonly birthDate: string | null;
+  readonly preserveBirthDate?: boolean;
 }
 
 export interface CustomerSessionLookup {
@@ -45,7 +46,7 @@ export function createCustomerRepository(
           .values({
             phone: input.phone,
             name: normalizedName === "" ? "Гость" : normalizedName,
-            birthDate: input.birthDate,
+            birthDate: input.birthDate ?? null,
             createdAt: now,
             updatedAt: now
           })
@@ -53,7 +54,7 @@ export function createCustomerRepository(
             target: customers.phone,
             set: {
               ...(normalizedName === "" ? {} : { name: normalizedName }),
-              birthDate: input.birthDate,
+              ...(input.preserveBirthDate === true ? {} : { birthDate: input.birthDate }),
               updatedAt: now
             }
           })

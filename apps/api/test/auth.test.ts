@@ -49,7 +49,11 @@ function createMemoryCustomerRepository(): CustomerRepository & {
         updatedAt: now
       };
       if (existing === undefined) customers.push(customer);
-      else Object.assign(existing, { ...(input.name === "" ? {} : { name: input.name }), birthDate: input.birthDate, updatedAt: now });
+      else Object.assign(existing, {
+        ...(input.name === "" ? {} : { name: input.name }),
+        ...(input.preserveBirthDate === true ? {} : { birthDate: input.birthDate }),
+        updatedAt: now
+      });
       const createdSession: CustomerSessionRecord = {
         id: nextSessionId++,
         customerId: customer.id,
@@ -162,15 +166,34 @@ describe("customer auth API", () => {
     expect(me.statusCode).toBe(200);
   });
 
-  it("allows phone-only identification without sending an SMS code", async () => {
+  it("preserves the optional birth date when a later session restore omits it", async () => {
+    const first = await app.inject({
+      method: "POST",
+      url: "/auth/identify",
+      headers: { "x-session-transport": "bearer" },
+      payload: { phone: "+79991234567", name: "Анна", birthDate: "1990-02-28" }
+    });
+    expect(first.statusCode).toBe(201);
+
+    const restored = await app.inject({
+      method: "POST",
+      url: "/auth/identify",
+      headers: { "x-session-transport": "bearer" },
+      payload: { phone: "+79991234567", name: "Анна" }
+    });
+    expect(restored.statusCode).toBe(201);
+    expect(CustomerIdentifyResponseSchema.parse(restored.json()).customer.birthDate).toBe("1990-02-28");
+  });
+
+  it("identifies without sending an SMS code", async () => {
     const identified = await app.inject({
       method: "POST",
       url: "/auth/identify",
       headers: { "x-session-transport": "bearer" },
-      payload: { phone: "+79991234567" }
+      payload: { phone: "+79991234567", name: "Анна" }
     });
     expect(identified.statusCode).toBe(201);
-    expect(CustomerIdentifyResponseSchema.parse(identified.json()).customer.name).toBe("Гость");
+    expect(CustomerIdentifyResponseSchema.parse(identified.json()).customer.name).toBe("Анна");
     expect((await app.inject({ method: "POST", url: "/auth/sms/request", payload: { phone: "+79991234567", purpose: "login" } })).statusCode).toBe(404);
   });
 

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { E2E_ADMIN_URL, E2E_API_URL, E2E_CUSTOMER_URL } from "./urls";
 import { loginAdmin } from "./admin-auth";
+import { completeCustomerFirstEntry } from "./customer-auth";
 
 test("Customer quote follows Admin price and visibility changes", async ({
   browser,
@@ -40,15 +41,11 @@ test("Customer quote follows Admin price and visibility changes", async ({
     await customer.goto(E2E_CUSTOMER_URL, {
       waitUntil: "domcontentloaded"
     });
+    await completeCustomerFirstEntry(customer);
     await expect(customer.getByText(productName)).toBeVisible();
     await customer
       .getByRole("button", { name: `Добавить в корзину ${productName}` })
       .click();
-    const identifyDialog = customer.getByTestId("customer-identify-modal");
-    await expect(identifyDialog).toBeVisible();
-    await identifyDialog.getByLabel("Номер телефона").fill("8 (999) 123-45-67");
-    await identifyDialog.getByRole("button", { name: "Сохранить и добавить" }).click();
-    await expect(customer.getByTestId("customer-identify-success")).toBeVisible();
     await customer
       .getByRole("button", { name: "Открыть корзину" })
       .first()
