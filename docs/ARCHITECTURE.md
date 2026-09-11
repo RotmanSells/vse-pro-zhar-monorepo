@@ -179,6 +179,8 @@ POST /auth/identify (name + phone + optional birth date, Web/native) → Postgre
 one pending { productId, quantity } action → local guest cart
 ```
 
+Проверочный Push идёт только через защищённый Admin Backend route: Backend вызывает Expo Push Service и сохраняет ticket/status delivery, browser не получает device token.
+
 Backend + PostgreSQL — source of truth для normalized phone, profile и session validity. Web session transport — HttpOnly/Secure/SameSite cookie с explicit origin allowlist; локальный Customer Web и API используют host `localhost` для одной cookie site family, нельзя смешивать `localhost` и `127.0.0.1` для auth/checkout. iOS/Android — bearer token через injected secure-storage adapter; phone-only auth не отправляет SMS-коды. Native `expo-notifications` получает permission/token на устройстве, а Backend хранит device registry и preference. Raw session token не хранится в PostgreSQL, localStorage или AsyncStorage. SMS.ru adapter оставлен как server-side boundary для будущих SMS-уведомлений и не вызывается auth flow. M6 добавляет только authenticated read-only checkout validation; M7 добавляет server-backed internal order persistence with `pending_payment`, idempotency and Customer ownership, без payment/iiko flows.
 
 Изображение проходит через Backend до записи URL в Product:

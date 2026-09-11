@@ -62,3 +62,38 @@ export const CustomerNotificationDeviceRevokeResponseSchema = z.object({
   revoked: z.boolean()
 }).strict();
 export type CustomerNotificationDeviceRevokeResponse = z.infer<typeof CustomerNotificationDeviceRevokeResponseSchema>;
+
+export const AdminPushDeliveryStatusSchema = z.enum([
+  "accepted",
+  "delivered",
+  "failed",
+  "reconciliation_required"
+]);
+export type AdminPushDeliveryStatus = z.infer<typeof AdminPushDeliveryStatusSchema>;
+
+export const AdminPushSendRequestSchema = z.object({
+  phone: z.string().trim().min(1).max(64),
+  title: z.string().trim().min(1).max(80),
+  body: z.string().trim().min(1).max(2_000)
+}).strict();
+export type AdminPushSendRequest = z.infer<typeof AdminPushSendRequestSchema>;
+
+export const AdminPushDeliverySchema = z.object({
+  id: IdSchema,
+  deviceId: IdSchema,
+  provider: CustomerNotificationProviderSchema,
+  status: AdminPushDeliveryStatusSchema,
+  providerTicketId: z.string().trim().min(1).max(128).nullable(),
+  errorCode: z.string().trim().min(1).max(80).nullable(),
+  createdAt: DateTimeSchema,
+  updatedAt: DateTimeSchema
+}).strict();
+export type AdminPushDelivery = z.infer<typeof AdminPushDeliverySchema>;
+
+export const AdminPushSendResponseSchema = z.object({
+  status: z.literal("confirmed"),
+  customerId: IdSchema,
+  deliveries: z.array(AdminPushDeliverySchema).max(10).readonly(),
+  replayed: z.boolean()
+}).strict();
+export type AdminPushSendResponse = z.infer<typeof AdminPushSendResponseSchema>;

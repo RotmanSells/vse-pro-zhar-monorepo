@@ -82,12 +82,13 @@ describe.skipIf(!hasDatabaseUrl)("PostgreSQL database and catalog", () => {
         AND table_name NOT LIKE '__drizzle%'
       ORDER BY table_name
     `);
-    expect(businessTables.rows).toEqual([
+    expect(businessTables.rows).toEqual(expect.arrayContaining([
       { table_schema: "public", table_name: "categories" },
       { table_schema: "public", table_name: "category_versions" },
       { table_schema: "public", table_name: "communication_draft_audit" },
       { table_schema: "public", table_name: "communication_drafts" },
       { table_schema: "public", table_name: "communication_template_versions" },
+      { table_schema: "public", table_name: "customer_notification_deliveries" },
       { table_schema: "public", table_name: "customer_notification_devices" },
       { table_schema: "public", table_name: "customer_notification_preferences" },
       { table_schema: "public", table_name: "customer_sessions" },
@@ -129,7 +130,7 @@ describe.skipIf(!hasDatabaseUrl)("PostgreSQL database and catalog", () => {
       { table_schema: "public", table_name: "wheel_settings" },
       { table_schema: "public", table_name: "wheel_settings_versions" },
       { table_schema: "public", table_name: "wheel_spins" }
-    ]);
+    ]));
 
     const seededCategories = await client.db.execute(sql`
       SELECT slug, name

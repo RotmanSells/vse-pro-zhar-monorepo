@@ -13,6 +13,10 @@ test("Admin Customers is protected, masked and responsive", async ({ browser, re
   await responsePromise;
   await expect(page.getByRole("heading", { name: "Клиенты", exact: true })).toBeVisible();
   await expect(page.getByLabel("Поиск клиента")).toBeVisible();
+  await expect(page.getByLabel("Номер телефона для Push")).toBeVisible();
+  await expect(page.getByLabel("Заголовок Push")).toBeVisible();
+  await expect(page.getByLabel("Текст Push")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Отправить Push" })).toBeEnabled();
   await expect(page.getByRole("button", { name: /Экспорт/ })).toBeDisabled();
 
   for (const width of [320, 375, 768, 1024]) {

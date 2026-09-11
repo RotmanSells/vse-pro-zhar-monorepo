@@ -53,6 +53,9 @@ const SAFE_ERROR_MESSAGES: Readonly<Record<ApiErrorCode, string>> = {
   COMMUNICATION_UNAVAILABLE: "Коммуникации временно недоступны",
   NOTIFICATION_UNAVAILABLE: "Уведомления временно недоступны",
   NOTIFICATION_DEVICE_CONFLICT: "Это устройство уже зарегистрировано в другой сессии",
+  NOTIFICATION_PUSH_CONFLICT: "Этот ключ уже использован для другого Push-запроса",
+  NOTIFICATION_PUSH_DISABLED: "У клиента отключены Push-уведомления",
+  NOTIFICATION_PUSH_NO_DEVICE: "У клиента нет зарегистрированного Push-устройства",
   CATALOG_CATEGORY_CONFLICT: "Категория изменена в другой сессии. Обновите данные",
   CATALOG_CATEGORY_IDEMPOTENCY_CONFLICT: "Этот ключ уже использован для другого изменения категории",
   INTERNAL_ERROR: "Внутренняя ошибка сервера"

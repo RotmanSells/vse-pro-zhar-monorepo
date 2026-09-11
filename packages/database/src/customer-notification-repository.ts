@@ -4,15 +4,23 @@ import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
 import type { DatabaseClient } from "./db.js";
 import {
   customerNotificationDevices,
+  customerNotificationDeliveries,
   customerNotificationPreferences,
+  customers,
   smsAuthChallenges,
   type CustomerNotificationDeviceRecord,
+  type CustomerNotificationDeliveryRecord,
   type CustomerNotificationPreferencesRecord,
   type SmsAuthChallengeRecord
 } from "./schema.js";
 
 export type CustomerNotificationPlatform = "ios" | "android";
 export type CustomerNotificationProvider = "expo";
+
+function readPushPlatform(value: string): CustomerNotificationPlatform {
+  if (value === "ios" || value === "android") return value;
+  throw new Error("Notification device platform is invalid");
+}
 
 export interface RegisterNotificationDeviceInput {
   readonly customerId: number;
@@ -30,6 +38,40 @@ export interface CustomerNotificationRepository {
   revokeDevice(customerId: number, id: number, now: Date): Promise<boolean>;
   getPreferences(customerId: number, now: Date): Promise<CustomerNotificationPreferencesRecord>;
   updatePreferences(input: { readonly customerId: number; readonly pushEnabled?: boolean; readonly smsEnabled?: boolean; readonly now: Date }): Promise<CustomerNotificationPreferencesRecord>;
+}
+
+export type CustomerPushDeliveryStatus = "pending" | "accepted" | "delivered" | "failed" | "reconciliation_required";
+
+export interface CustomerPushDevice {
+  readonly id: number;
+  readonly provider: CustomerNotificationProvider;
+  readonly platform: CustomerNotificationPlatform;
+  readonly token: string;
+}
+
+export interface CustomerPushDeliveryCreateInput {
+  readonly customerId: number;
+  readonly deviceId: number;
+  readonly requestKey: string;
+  readonly payloadFingerprint: string;
+  readonly now: Date;
+}
+
+export interface CustomerPushDeliveryUpdateInput {
+  readonly status: CustomerPushDeliveryStatus;
+  readonly providerTicketId?: string | null;
+  readonly errorCode?: string | null;
+  readonly updatedAt: Date;
+}
+
+export interface CustomerPushRepository {
+  findCustomerIdByPhone(phone: string): Promise<number | null>;
+  isPushEnabled(customerId: number): Promise<boolean>;
+  listEnabledPushDevices(customerId: number): Promise<readonly CustomerPushDevice[]>;
+  prepareDelivery(input: CustomerPushDeliveryCreateInput): Promise<{ readonly delivery: CustomerNotificationDeliveryRecord; readonly created: boolean }>;
+  updateDelivery(id: number, input: CustomerPushDeliveryUpdateInput): Promise<CustomerNotificationDeliveryRecord | null>;
+  listDeliveries(requestKey: string): Promise<readonly CustomerNotificationDeliveryRecord[]>;
+  disableDevice(deviceId: number, now: Date): Promise<void>;
 }
 
 export class NotificationDeviceIdempotencyConflictError extends Error {
@@ -148,6 +190,106 @@ export function createCustomerNotificationRepository(client: DatabaseClient): Cu
       return updated;
     }
   };
+}
+
+export function createCustomerPushRepository(client: DatabaseClient): CustomerPushRepository {
+  return {
+    async findCustomerIdByPhone(phone) {
+      const [customer] = await client.db.select({ id: customers.id }).from(customers).where(eq(customers.phone, phone)).limit(1);
+      return customer?.id ?? null;
+    },
+
+    async isPushEnabled(customerId) {
+      const [preferences] = await client.db.select({ pushEnabled: customerNotificationPreferences.pushEnabled })
+        .from(customerNotificationPreferences)
+        .where(eq(customerNotificationPreferences.customerId, customerId))
+        .limit(1);
+      return preferences?.pushEnabled ?? true;
+    },
+
+    async listEnabledPushDevices(customerId) {
+      const rows = await client.db.select({
+        id: customerNotificationDevices.id,
+        provider: customerNotificationDevices.provider,
+        platform: customerNotificationDevices.platform,
+        token: customerNotificationDevices.token
+      }).from(customerNotificationDevices)
+        .where(and(
+          eq(customerNotificationDevices.customerId, customerId),
+          eq(customerNotificationDevices.provider, "expo"),
+          eq(customerNotificationDevices.enabled, true)
+        ))
+        .orderBy(desc(customerNotificationDevices.lastSeenAt));
+      return rows.map((device) => ({
+        id: device.id,
+        provider: "expo" as const,
+        platform: readPushPlatform(device.platform),
+        token: device.token
+      }));
+    },
+
+    async prepareDelivery(input) {
+      return client.db.transaction(async (tx) => {
+        const [existing] = await tx.select().from(customerNotificationDeliveries)
+          .where(and(
+            eq(customerNotificationDeliveries.requestKey, input.requestKey),
+            eq(customerNotificationDeliveries.deviceId, input.deviceId)
+          ))
+          .limit(1)
+          .for("update");
+        if (existing !== undefined) {
+          if (existing.payloadFingerprint !== input.payloadFingerprint) throw new NotificationPushIdempotencyConflictError();
+          return { delivery: existing, created: false };
+        }
+        const [delivery] = await tx.insert(customerNotificationDeliveries).values({
+          customerId: input.customerId,
+          deviceId: input.deviceId,
+          provider: "expo",
+          requestKey: input.requestKey,
+          payloadFingerprint: input.payloadFingerprint,
+          providerTicketId: null,
+          status: "pending",
+          errorCode: null,
+          createdAt: input.now,
+          updatedAt: input.now
+        }).returning();
+        if (delivery === undefined) throw new Error("Push delivery insert returned no row");
+        return { delivery, created: true };
+      });
+    },
+
+    async updateDelivery(id, input) {
+      const [delivery] = await client.db.update(customerNotificationDeliveries)
+        .set({
+          status: input.status,
+          ...(input.providerTicketId === undefined ? {} : { providerTicketId: input.providerTicketId }),
+          ...(input.errorCode === undefined ? {} : { errorCode: input.errorCode }),
+          updatedAt: input.updatedAt
+        })
+        .where(eq(customerNotificationDeliveries.id, id))
+        .returning();
+      return delivery ?? null;
+    },
+
+    async listDeliveries(requestKey) {
+      return client.db.select().from(customerNotificationDeliveries)
+        .where(eq(customerNotificationDeliveries.requestKey, requestKey))
+        .orderBy(customerNotificationDeliveries.id);
+    },
+
+    async disableDevice(deviceId, now) {
+      await client.db.update(customerNotificationDevices)
+        .set({ enabled: false, updatedAt: now })
+        .where(and(eq(customerNotificationDevices.id, deviceId), eq(customerNotificationDevices.enabled, true)));
+    }
+  };
+}
+
+export class NotificationPushIdempotencyConflictError extends Error {
+  constructor() {
+    super("Push request idempotency key conflicts");
+    this.name = "NotificationPushIdempotencyConflictError";
+  }
 }
 
 export function createSmsAuthRepository(client: DatabaseClient): SmsAuthRepository {

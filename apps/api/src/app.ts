@@ -11,7 +11,8 @@ import type {
   CancellationRefundRepository,
   LoyaltyRepository,
   CustomerProfileRepository,
-  WheelQuestRepository
+  WheelQuestRepository,
+  CustomerPushRepository
 } from "@vse-pro-zhar/database";
 import type { CustomerNotificationRepository } from "@vse-pro-zhar/database";
 import type { AdminPromoRepository } from "@vse-pro-zhar/database";
@@ -45,6 +46,8 @@ import { registerAdminSegmentRoutes } from "./segments/route.js";
 import { registerAdminPromoRoutes } from "./promos/route.js";
 import { registerAdminCommunicationRoutes } from "./communications/route.js";
 import { registerNotificationRoutes } from "./notifications/route.js";
+import { registerAdminPushRoutes } from "./notifications/admin-push-route.js";
+import type { ExpoPushProvider } from "./notifications/expo-provider.js";
 import { CancellationRefundService } from "./cancellation-refund/service.js";
 import { CancellationUnavailableError } from "./cancellation-refund/errors.js";
 import type { OrderRouteOptions } from "./orders/route.js";
@@ -81,6 +84,8 @@ export interface BuildAppOptions {
   readonly adminPromoRepository?: AdminPromoRepository;
   readonly adminCommunicationRepository?: AdminCommunicationDraftRepository;
   readonly notificationRepository?: CustomerNotificationRepository;
+  readonly pushRepository?: CustomerPushRepository;
+  readonly pushProvider?: ExpoPushProvider;
 }
 
 function isRefundProvider(value: PaymentProvider | RefundProvider | undefined): value is RefundProvider {
@@ -130,6 +135,13 @@ export function buildApp(
     ...(options.now === undefined ? {} : { now: options.now })
   });
   const staffGuard = createStaffGuard(options.staffRepository, config, options.now);
+  registerAdminPushRoutes(app, {
+    config,
+    staffGuard,
+    ...(options.pushRepository === undefined ? {} : { repository: options.pushRepository }),
+    ...(options.pushProvider === undefined ? {} : { provider: options.pushProvider }),
+    ...(options.now === undefined ? {} : { now: options.now })
+  });
   registerAdminAnalyticsRoutes(app, config, {
     staffGuard,
     ...(options.analyticsRepository === undefined ? {} : { analyticsRepository: options.analyticsRepository }),

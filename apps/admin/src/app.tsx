@@ -5,6 +5,7 @@ import type {
   AdminAuthRequestController,
   AdminAnalyticsClient,
   AdminCustomersClient,
+  AdminPushClient,
   AdminCommunicationsClient,
   AdminSegmentsClient,
   AdminLoyaltyClient,
@@ -21,6 +22,7 @@ import { createAdminOrdersClient } from "./api/admin-orders-client";
 import { createAdminLoyaltyClient } from "./api/admin-loyalty-client";
 import { createAdminAnalyticsClient } from "./api/admin-analytics-client";
 import { createAdminCustomersClient } from "./api/admin-customers-client";
+import { createAdminPushClient } from "./api/admin-push-client";
 import { createAdminSegmentsClient } from "./api/admin-segments-client";
 import { createAdminPromosClient } from "./api/admin-promos-client";
 import { createAdminCommunicationsClient } from "./api/admin-communications-client";
@@ -72,6 +74,7 @@ export interface AppProps {
   readonly loyaltyClient?: AdminLoyaltyClient;
   readonly analyticsClient?: AdminAnalyticsClient;
   readonly customersClient?: AdminCustomersClient;
+  readonly pushClient?: AdminPushClient;
   readonly segmentsClient?: AdminSegmentsClient;
   readonly promosClient?: AdminPromosClient;
   readonly communicationsClient?: AdminCommunicationsClient;
@@ -133,21 +136,22 @@ function AdminShell({ children, section, staff, onSectionChange, onLogout }: Adm
   );
 }
 
-export function App({ client, authClient, ordersClient, loyaltyClient, analyticsClient, customersClient, segmentsClient, promosClient, communicationsClient }: AppProps): React.JSX.Element {
+export function App({ client, authClient, ordersClient, loyaltyClient, analyticsClient, customersClient, pushClient, segmentsClient, promosClient, communicationsClient }: AppProps): React.JSX.Element {
   const defaultCatalogClient = useMemo(() => createCatalogClient(), []);
   if (client !== undefined && isHealthClient(client)) return <HealthScreen client={client} />;
   // A supplied catalog client is the focused component-test seam retained from M1.
   // The production entrypoint has no client prop and always goes through staff auth.
   if (client !== undefined) return <AdminShell section="catalog" staff={null}><CatalogScreen client={client} /></AdminShell>;
-  return <AuthenticatedAdminApp analyticsClient={analyticsClient} catalogClient={defaultCatalogClient} authClient={authClient} ordersClient={ordersClient} loyaltyClient={loyaltyClient} customersClient={customersClient} segmentsClient={segmentsClient} promosClient={promosClient} communicationsClient={communicationsClient} />;
+  return <AuthenticatedAdminApp analyticsClient={analyticsClient} catalogClient={defaultCatalogClient} authClient={authClient} ordersClient={ordersClient} loyaltyClient={loyaltyClient} customersClient={customersClient} pushClient={pushClient} segmentsClient={segmentsClient} promosClient={promosClient} communicationsClient={communicationsClient} />;
 }
 
-function AuthenticatedAdminApp({ catalogClient, authClient, ordersClient, loyaltyClient, analyticsClient, customersClient, segmentsClient, promosClient, communicationsClient }: { readonly catalogClient: CatalogAdminClient; readonly authClient?: AdminAuthClient | undefined; readonly ordersClient?: AdminOrdersClient | undefined; readonly loyaltyClient?: AdminLoyaltyClient | undefined; readonly analyticsClient?: AdminAnalyticsClient | undefined; readonly customersClient?: AdminCustomersClient | undefined; readonly segmentsClient?: AdminSegmentsClient | undefined; readonly promosClient?: AdminPromosClient | undefined; readonly communicationsClient?: AdminCommunicationsClient | undefined }): React.JSX.Element {
+function AuthenticatedAdminApp({ catalogClient, authClient, ordersClient, loyaltyClient, analyticsClient, customersClient, pushClient, segmentsClient, promosClient, communicationsClient }: { readonly catalogClient: CatalogAdminClient; readonly authClient?: AdminAuthClient | undefined; readonly ordersClient?: AdminOrdersClient | undefined; readonly loyaltyClient?: AdminLoyaltyClient | undefined; readonly analyticsClient?: AdminAnalyticsClient | undefined; readonly customersClient?: AdminCustomersClient | undefined; readonly pushClient?: AdminPushClient | undefined; readonly segmentsClient?: AdminSegmentsClient | undefined; readonly promosClient?: AdminPromosClient | undefined; readonly communicationsClient?: AdminCommunicationsClient | undefined }): React.JSX.Element {
   const resolvedAuthClient = useMemo(() => authClient ?? createAdminAuthClient(), [authClient]);
   const resolvedOrdersClient = useMemo(() => ordersClient ?? createAdminOrdersClient(), [ordersClient]);
   const resolvedLoyaltyClient = useMemo(() => loyaltyClient ?? createAdminLoyaltyClient(), [loyaltyClient]);
   const resolvedAnalyticsClient = useMemo(() => analyticsClient ?? createAdminAnalyticsClient(), [analyticsClient]);
   const resolvedCustomersClient = useMemo(() => customersClient ?? createAdminCustomersClient(), [customersClient]);
+  const resolvedPushClient = useMemo(() => pushClient ?? createAdminPushClient(), [pushClient]);
   const resolvedSegmentsClient = useMemo(() => segmentsClient ?? createAdminSegmentsClient(), [segmentsClient]);
   const resolvedPromosClient = useMemo(() => promosClient ?? createAdminPromosClient(), [promosClient]);
   const resolvedCommunicationsClient = useMemo(() => communicationsClient ?? createAdminCommunicationsClient(), [communicationsClient]);
@@ -167,5 +171,5 @@ function AuthenticatedAdminApp({ catalogClient, authClient, ordersClient, loyalt
     return controllerRef.current === null ? <div className="page-shell"><div className="diagnostic-card">Admin auth недоступен</div></div> : <LoginScreen controller={controllerRef.current} message={authState.status === "error" ? authState.message : undefined} />;
   }
   const staff = authState.staff;
-  return <AdminShell section={section} staff={staff} onLogout={() => { void controllerRef.current?.logout(); }} onSectionChange={setSection}>{section === "dashboard" ? <DashboardScreen client={resolvedAnalyticsClient} /> : section === "catalog" ? <CatalogScreen client={catalogClient} /> : section === "customers" ? <CustomersScreen client={resolvedCustomersClient} /> : section === "segments" ? <SegmentsScreen client={resolvedSegmentsClient} onOpenCommunications={(code) => { setCommunicationSegmentCode(code); setSection("communications"); }} /> : section === "communications" ? <CommunicationsScreen client={resolvedCommunicationsClient} initialSegmentCode={communicationSegmentCode} onComposerClosed={() => setCommunicationSegmentCode(null)} /> : section === "promos" ? <PromosScreen client={resolvedPromosClient} /> : section === "loyalty" || section === "rewards" || section === "quests" || section === "wheel" ? <LoyaltyScreen client={resolvedLoyaltyClient} section={section === "quests" ? "quests" : section === "wheel" ? "wheel" : section === "rewards" ? "rewards" : "overview"} /> : <OrdersScreen client={resolvedOrdersClient} />}</AdminShell>;
+  return <AdminShell section={section} staff={staff} onLogout={() => { void controllerRef.current?.logout(); }} onSectionChange={setSection}>{section === "dashboard" ? <DashboardScreen client={resolvedAnalyticsClient} /> : section === "catalog" ? <CatalogScreen client={catalogClient} /> : section === "customers" ? <CustomersScreen client={resolvedCustomersClient} pushClient={resolvedPushClient} /> : section === "segments" ? <SegmentsScreen client={resolvedSegmentsClient} onOpenCommunications={(code) => { setCommunicationSegmentCode(code); setSection("communications"); }} /> : section === "communications" ? <CommunicationsScreen client={resolvedCommunicationsClient} initialSegmentCode={communicationSegmentCode} onComposerClosed={() => setCommunicationSegmentCode(null)} /> : section === "promos" ? <PromosScreen client={resolvedPromosClient} /> : section === "loyalty" || section === "rewards" || section === "quests" || section === "wheel" ? <LoyaltyScreen client={resolvedLoyaltyClient} section={section === "quests" ? "quests" : section === "wheel" ? "wheel" : section === "rewards" ? "rewards" : "overview"} /> : <OrdersScreen client={resolvedOrdersClient} />}</AdminShell>;
 }

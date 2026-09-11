@@ -20,6 +20,7 @@ import {
   createPaymentRepository,
   createStaffRepository,
   createCustomerNotificationRepository,
+  createCustomerPushRepository,
   type DatabaseClient
 } from "@vse-pro-zhar/database";
 
@@ -40,6 +41,7 @@ import { RefundProcessor } from "./cancellation-refund/processor.js";
 import { CancellationRefundService } from "./cancellation-refund/service.js";
 import { createMediaStorage } from "./media/storage.js";
 import { createYooKassaProviderFromEnvironment } from "./payments/provider.js";
+import { createExpoPushProviderFromEnvironment } from "./notifications/expo-provider.js";
 
 function loadLocalServerEnvironment(): void {
   // Node's process.loadEnvFile keeps the first value it loads. Read local
@@ -98,6 +100,7 @@ export async function startServer(config: ApiConfig): Promise<FastifyInstance> {
   let questProcessor: QuestProcessor | undefined;
   const availabilityProvider = createAvailabilityProviderFromEnvironment();
   const paymentProvider = createYooKassaProviderFromEnvironment();
+  const pushProvider = createExpoPushProviderFromEnvironment();
 
   const databaseUrl = process.env["DATABASE_URL"];
 
@@ -122,6 +125,7 @@ export async function startServer(config: ApiConfig): Promise<FastifyInstance> {
   const loyaltyRepository = database === undefined ? undefined : createLoyaltyRepository(database);
   const wheelQuestRepository = database === undefined ? undefined : createWheelQuestRepository(database, { nextRankCode: rankForXp });
   const notificationRepository = database === undefined ? undefined : createCustomerNotificationRepository(database);
+  const pushRepository = database === undefined ? undefined : createCustomerPushRepository(database);
 
   const mediaDirectory = process.env["MEDIA_DIR"]?.trim();
   const mediaPublicUrl = process.env["MEDIA_PUBLIC_URL"]?.trim();
@@ -159,6 +163,8 @@ export async function startServer(config: ApiConfig): Promise<FastifyInstance> {
           ...(adminPromoRepository === undefined ? {} : { adminPromoRepository }),
           ...(adminCommunicationRepository === undefined ? {} : { adminCommunicationRepository }),
           ...(notificationRepository === undefined ? {} : { notificationRepository }),
+          ...(pushRepository === undefined ? {} : { pushRepository }),
+          pushProvider,
           refundProvider: paymentProvider,
           mediaStorage
         });

@@ -181,6 +181,36 @@ export const customerNotificationPreferences = pgTable(
   (table) => [index("customer_notification_preferences_customer_id_idx").on(table.customerId)]
 );
 
+export const customerNotificationDeliveries = pgTable(
+  "customer_notification_deliveries",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    customerId: integer("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    deviceId: integer("device_id")
+      .notNull()
+      .references(() => customerNotificationDevices.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    provider: varchar("provider", { length: 16 }).notNull().default("expo"),
+    requestKey: varchar("request_key", { length: 255 }).notNull(),
+    payloadFingerprint: varchar("payload_fingerprint", { length: 64 }).notNull(),
+    providerTicketId: varchar("provider_ticket_id", { length: 128 }),
+    status: varchar("status", { length: 32 }).notNull().default("pending"),
+    errorCode: varchar("error_code", { length: 80 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    unique("customer_notification_deliveries_request_device_unique").on(table.requestKey, table.deviceId),
+    unique("customer_notification_deliveries_provider_ticket_unique").on(table.provider, table.providerTicketId),
+    index("customer_notification_deliveries_customer_id_idx").on(table.customerId),
+    index("customer_notification_deliveries_request_key_idx").on(table.requestKey),
+    check("customer_notification_deliveries_provider_check", sql`${table.provider} = 'expo'`),
+    check("customer_notification_deliveries_status_check", sql`${table.status} IN ('pending', 'accepted', 'delivered', 'failed', 'reconciliation_required')`),
+    check("customer_notification_deliveries_fingerprint_check", sql`${table.payloadFingerprint} ~ '^[0-9a-f]{64}$'`)
+  ]
+);
+
 export const smsAuthChallenges = pgTable(
   "sms_auth_challenges",
   {
@@ -1682,6 +1712,7 @@ export type CustomerRecord = typeof customers.$inferSelect;
 export type CustomerSessionRecord = typeof customerSessions.$inferSelect;
 export type CustomerNotificationDeviceRecord = typeof customerNotificationDevices.$inferSelect;
 export type CustomerNotificationPreferencesRecord = typeof customerNotificationPreferences.$inferSelect;
+export type CustomerNotificationDeliveryRecord = typeof customerNotificationDeliveries.$inferSelect;
 export type SmsAuthChallengeRecord = typeof smsAuthChallenges.$inferSelect;
 export type OrderRecord = typeof orders.$inferSelect;
 export type OrderCustomerSnapshotRecord = typeof orderCustomerSnapshots.$inferSelect;

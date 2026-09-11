@@ -163,6 +163,15 @@ export {
   type AdminCustomersState
 } from "./admin-customers-controller.js";
 export {
+  AdminPushClientError,
+  createAdminPushClient,
+  DEFAULT_ADMIN_PUSH_TIMEOUT_MS,
+  type AdminPushClient,
+  type AdminPushClientErrorKind,
+  type AdminPushClientOptions,
+  type AdminPushRequestOptions
+} from "./admin-push-client.js";
+export {
   createAdminSegmentsClient,
   AdminSegmentsClientError,
   DEFAULT_ADMIN_SEGMENTS_TIMEOUT_MS,

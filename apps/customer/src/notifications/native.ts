@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 
 import type { NotificationsClient } from "../api/notifications-client";
+import { debugLog } from "../debug/logger";
 
 export type NativePushRegistrationResult =
   | { readonly status: "registered"; readonly deviceId: number }
@@ -19,9 +20,15 @@ async function expoProjectId(): Promise<string | null> {
 }
 
 export async function registerNativePushDevice(client: NotificationsClient): Promise<NativePushRegistrationResult> {
-  if (Platform.OS !== "ios" && Platform.OS !== "android") return { status: "unavailable", reason: "web" };
+  if (Platform.OS !== "ios" && Platform.OS !== "android") {
+    debugLog("push.registration.unavailable", { reason: "web" });
+    return { status: "unavailable", reason: "web" };
+  }
   const projectId = await expoProjectId();
-  if (projectId === null) return { status: "unavailable", reason: "project_id_missing" };
+  if (projectId === null) {
+    debugLog("push.registration.unavailable", { reason: "project_id_missing" });
+    return { status: "unavailable", reason: "project_id_missing" };
+  }
   try {
     const Notifications = await import("expo-notifications");
     Notifications.setNotificationHandler({
@@ -41,11 +48,16 @@ export async function registerNativePushDevice(client: NotificationsClient): Pro
     }
     const current = await Notifications.getPermissionsAsync();
     const permissions = current.granted ? current : await Notifications.requestPermissionsAsync();
-    if (!permissions.granted) return { status: "unavailable", reason: "permission_denied" };
+    if (!permissions.granted) {
+      debugLog("push.registration.unavailable", { reason: "permission_denied" });
+      return { status: "unavailable", reason: "permission_denied" };
+    }
     const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
     const response = await client.registerDevice({ idempotencyKey: idempotencyKey(token), provider: "expo", platform: Platform.OS, token });
+    debugLog("push.registration.success", { deviceId: response.device.id });
     return { status: "registered", deviceId: response.device.id };
   } catch {
+    debugLog("push.registration.error", { reason: "registration_failed" });
     return { status: "unavailable", reason: "registration_failed" };
   }
 }

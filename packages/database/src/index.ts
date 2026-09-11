@@ -32,6 +32,7 @@ export {
   categories,
   categoryVersions,
   customerSessions,
+  customerNotificationDeliveries,
   customers,
   iikoOrderDispatches,
   orderCustomerSnapshots,
@@ -133,12 +134,19 @@ export {
 } from "./customer-profile-repository.js";
 export {
   createCustomerNotificationRepository,
+  createCustomerPushRepository,
   createSmsAuthRepository,
   notificationPayloadFingerprint,
   NotificationDeviceIdempotencyConflictError,
+  NotificationPushIdempotencyConflictError,
   type CustomerNotificationPlatform,
   type CustomerNotificationProvider,
   type CustomerNotificationRepository,
+  type CustomerPushRepository,
+  type CustomerPushDevice,
+  type CustomerPushDeliveryStatus,
+  type CustomerPushDeliveryCreateInput,
+  type CustomerPushDeliveryUpdateInput,
   type RegisterNotificationDeviceInput,
   type SmsAuthRepository,
   type SmsChallengeConsumeResult,
@@ -147,6 +155,7 @@ export {
 export type {
   CustomerNotificationDeviceRecord,
   CustomerNotificationPreferencesRecord,
+  CustomerNotificationDeliveryRecord,
   SmsAuthChallengeRecord
 } from "./schema.js";
 export {
