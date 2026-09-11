@@ -38,6 +38,10 @@ Completed Task
 
 Агент не переходит самостоятельно к следующей Active Task. Новый execution plan принимается отдельно.
 
+## Database policy
+
+В проекте используется одна основная PostgreSQL database. Для текущего проекта canonical local database — `vse_pro_zhar_dev`. Локальные development-запуски, ручная browser-проверка, Backend и migrations должны использовать только настроенный `DATABASE_URL` этой database. Запрещено создавать или использовать `vse_pro_zhar_test`, другие `*_test` databases и отдельные локальные PostgreSQL databases. Исторические планы с прежними изолированными командами не являются инструкцией для нового запуска.
+
 ## Living document
 
 Execution Plan — живой документ, а не только первоначальный prompt. Агент обязан обновлять его по мере реализации:

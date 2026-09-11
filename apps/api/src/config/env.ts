@@ -7,6 +7,10 @@ const DEFAULT_CORS_ALLOWED_ORIGINS = [
   "http://127.0.0.1:5173",
   "http://localhost:5173"
 ] as const;
+const DEVELOPMENT_SESSION_SECRET =
+  "development-only-session-secret-change-me-32-bytes";
+const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+const DEFAULT_STAFF_SESSION_TTL_SECONDS = 60 * 60 * 8;
 
 const OriginSchema = z
   .string()
@@ -62,7 +66,20 @@ const RawApiConfigSchema = z.object({
   APP_ENV: EnvironmentSchema.default("development"),
   API_HOST: z.string().trim().min(1).default("127.0.0.1"),
   API_PORT: PortSchema.optional(),
-  CORS_ALLOWED_ORIGINS: z.string().optional()
+  CORS_ALLOWED_ORIGINS: z.string().optional(),
+  AUTH_SESSION_SECRET: z.string().trim().min(32).optional(),
+  AUTH_SESSION_TTL_SECONDS: z
+    .string()
+    .regex(/^\d+$/u)
+    .transform(Number)
+    .pipe(z.number().int().min(300).max(60 * 60 * 24 * 365))
+    .optional(),
+  STAFF_SESSION_TTL_SECONDS: z
+    .string()
+    .regex(/^\d+$/u)
+    .transform(Number)
+    .pipe(z.number().int().min(300).max(60 * 60 * 24))
+    .optional()
 });
 
 export const ApiConfigSchema = z
@@ -70,7 +87,10 @@ export const ApiConfigSchema = z
     environment: EnvironmentSchema,
     host: z.string().trim().min(1),
     port: z.number().int().min(1).max(65_535),
-    corsAllowedOrigins: z.array(OriginSchema).min(1).max(20)
+    corsAllowedOrigins: z.array(OriginSchema).min(1).max(20),
+    sessionSecret: z.string().min(32),
+    sessionTtlMs: z.number().int().min(300_000),
+    staffSessionTtlMs: z.number().int().min(300_000)
   })
   .strict();
 
@@ -151,6 +171,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     throw new ApiConfigError(toSafeDiagnostics(parsed.error.issues));
   }
 
+  if (
+    parsed.data.APP_ENV === "production" &&
+    parsed.data.AUTH_SESSION_SECRET === undefined
+  ) {
+    throw new ApiConfigError([
+      {
+        path: "AUTH_SESSION_SECRET",
+        message: "value is required in production"
+      }
+    ]);
+  }
+
   let corsAllowedOrigins: string[];
 
   if (parsed.data.CORS_ALLOWED_ORIGINS === undefined) {
@@ -182,7 +214,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     environment: parsed.data.APP_ENV,
     host: parsed.data.API_HOST,
     port: parsed.data.API_PORT ?? 3000,
-    corsAllowedOrigins
+    corsAllowedOrigins,
+    sessionSecret:
+      parsed.data.AUTH_SESSION_SECRET ?? DEVELOPMENT_SESSION_SECRET,
+    sessionTtlMs:
+      (parsed.data.AUTH_SESSION_TTL_SECONDS ?? DEFAULT_SESSION_TTL_SECONDS) *
+      1_000,
+    staffSessionTtlMs:
+      (parsed.data.STAFF_SESSION_TTL_SECONDS ?? DEFAULT_STAFF_SESSION_TTL_SECONDS) *
+      1_000
   });
 
   if (!config.success) {

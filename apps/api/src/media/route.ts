@@ -1,6 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { MediaUploadResponseSchema } from "@vse-pro-zhar/contracts";
 
+import { assertSafeOrigin } from "../auth/route.js";
+import type { StaffGuard } from "../auth/staff-route.js";
+import type { ApiConfig } from "../config/env.js";
 import {
   MediaNotFoundError,
   MediaPayloadTooLargeError,
@@ -56,9 +59,13 @@ async function saveMedia(
 
 export function registerMediaRoutes(
   app: FastifyInstance,
-  storage: MediaStorage
+  storage: MediaStorage,
+  config: ApiConfig,
+  staffGuard: StaffGuard
 ): void {
   app.post("/admin/media/images", async (request, reply) => {
+    assertSafeOrigin(request, config);
+    await staffGuard.require(request);
     let file;
 
     try {

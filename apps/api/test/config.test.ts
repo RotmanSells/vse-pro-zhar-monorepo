@@ -15,6 +15,9 @@ describe("loadConfig", () => {
       environment: "test",
       host: "127.0.0.1",
       port: 3100,
+      sessionSecret: "development-only-session-secret-change-me-32-bytes",
+      sessionTtlMs: 2_592_000_000,
+      staffSessionTtlMs: 28_800_000,
       corsAllowedOrigins: [
         "http://127.0.0.1:8082",
         "http://localhost:8082",
@@ -29,6 +32,9 @@ describe("loadConfig", () => {
       environment: "development",
       host: "127.0.0.1",
       port: 3000,
+      sessionSecret: "development-only-session-secret-change-me-32-bytes",
+      sessionTtlMs: 2_592_000_000,
+      staffSessionTtlMs: 28_800_000,
       corsAllowedOrigins: [
         "http://127.0.0.1:8082",
         "http://localhost:8082",
@@ -46,7 +52,8 @@ describe("loadConfig", () => {
     expect(
       loadConfig({
         APP_ENV: "production",
-        CORS_ALLOWED_ORIGINS: "https://customer.example, https://admin.example"
+        CORS_ALLOWED_ORIGINS: "https://customer.example, https://admin.example",
+        AUTH_SESSION_SECRET: "production-session-secret-that-is-long-enough"
       }).corsAllowedOrigins
     ).toEqual(["https://customer.example", "https://admin.example"]);
   });
@@ -67,7 +74,11 @@ describe("loadConfig", () => {
     let error: unknown;
 
     try {
-      loadConfig({ APP_ENV: "production", CORS_ALLOWED_ORIGINS: "not-an-origin" });
+      loadConfig({
+        APP_ENV: "production",
+        CORS_ALLOWED_ORIGINS: "not-an-origin",
+        AUTH_SESSION_SECRET: "production-session-secret-that-is-long-enough"
+      });
     } catch (caught: unknown) {
       error = caught;
     }

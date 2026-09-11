@@ -1,8 +1,9 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import type { DatabaseClient } from "./db.js";
 import {
   categories,
+  categoryVersions,
   products,
   type CategoryRecord,
   type ProductRecord
@@ -13,6 +14,15 @@ export interface CatalogSnapshot {
   readonly products: readonly ProductRecord[];
 }
 
+export interface CatalogQuoteProduct {
+  readonly id: number;
+  readonly priceMinor: number;
+}
+
+export interface CatalogCheckoutProduct extends CatalogQuoteProduct {
+  readonly name: string;
+}
+
 export interface CatalogCategoryInput {
   readonly slug: string;
   readonly name: string;
@@ -21,10 +31,43 @@ export interface CatalogCategoryInput {
 }
 
 export interface CatalogCategoryUpdate {
-  readonly slug?: string;
   readonly name?: string;
   readonly sortOrder?: number;
   readonly isVisible?: boolean;
+  readonly expectedVersion?: number;
+}
+
+export interface CatalogCategoryMutationMetadata {
+  readonly actorStaffUserId: number;
+  readonly requestId: string;
+  readonly idempotencyKey: string;
+  readonly payloadFingerprint: string;
+  readonly now: Date;
+}
+
+export interface CatalogAdminCategoryRecord extends CategoryRecord {
+  readonly productCount: number;
+}
+
+export class CatalogCategoryConflictError extends Error {
+  constructor() {
+    super("Catalog category was changed or already exists");
+    this.name = "CatalogCategoryConflictError";
+  }
+}
+
+export class CatalogCategoryIdempotencyConflictError extends Error {
+  constructor() {
+    super("Catalog category idempotency key conflicts");
+    this.name = "CatalogCategoryIdempotencyConflictError";
+  }
+}
+
+export class CatalogCategoryVersionConflictError extends Error {
+  constructor() {
+    super("Catalog category version conflicts");
+    this.name = "CatalogCategoryVersionConflictError";
+  }
 }
 
 export interface CatalogProductInput {
@@ -53,10 +96,26 @@ export interface CatalogProductUpdate {
 
 export interface CatalogRepository {
   getCatalog(options?: { readonly includeHidden?: boolean }): Promise<CatalogSnapshot>;
-  createCategory(input: CatalogCategoryInput): Promise<CategoryRecord>;
+  getAdminCategories?(): Promise<readonly CatalogAdminCategoryRecord[]>;
+  getProductsForQuote(
+    productIds: readonly number[]
+  ): Promise<readonly CatalogQuoteProduct[]>;
+  /**
+   * Reads the public product snapshot needed by checkout in one repository
+   * boundary. It stays optional for backwards-compatible test doubles; the
+   * API has a safe catalog snapshot fallback when it is not implemented.
+   */
+  getProductsForCheckout?(
+    productIds: readonly number[]
+  ): Promise<readonly CatalogCheckoutProduct[]>;
+  createCategory(
+    input: CatalogCategoryInput,
+    metadata: CatalogCategoryMutationMetadata
+  ): Promise<CategoryRecord>;
   updateCategory(
     id: number,
-    input: CatalogCategoryUpdate
+    input: CatalogCategoryUpdate,
+    metadata: CatalogCategoryMutationMetadata
   ): Promise<CategoryRecord | null>;
   createProduct(input: CatalogProductInput): Promise<ProductRecord>;
   updateProduct(
@@ -70,8 +129,37 @@ function createCategoryValues(input: CatalogCategoryInput) {
     slug: input.slug,
     name: input.name,
     sortOrder: input.sortOrder,
-    isVisible: input.isVisible
+    isVisible: input.isVisible,
+    version: 1
   };
+}
+
+function assertMutationMetadata(
+  metadata: CatalogCategoryMutationMetadata,
+  expectedVersion?: number
+): void {
+  if (
+    !Number.isSafeInteger(metadata.actorStaffUserId) ||
+    metadata.actorStaffUserId < 1 ||
+    metadata.requestId.trim() === "" ||
+    metadata.idempotencyKey.trim() === "" ||
+    !/^[0-9a-f]{64}$/u.test(metadata.payloadFingerprint) ||
+    !(metadata.now instanceof Date) ||
+    !Number.isFinite(metadata.now.getTime()) ||
+    (expectedVersion !== undefined &&
+      (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1))
+  ) {
+    throw new CatalogCategoryConflictError();
+  }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "23505"
+  );
 }
 
 export function createCatalogRepository(client: DatabaseClient): CatalogRepository {
@@ -97,27 +185,208 @@ export function createCatalogRepository(client: DatabaseClient): CatalogReposito
       };
     },
 
-    async createCategory(input): Promise<CategoryRecord> {
-      const [category] = await client.db
-        .insert(categories)
-        .values(createCategoryValues(input))
-        .returning();
-
-      if (category === undefined) {
-        throw new Error("Category insert returned no row");
-      }
-
-      return category;
+    async getAdminCategories(): Promise<readonly CatalogAdminCategoryRecord[]> {
+      const snapshot = await this.getCatalog({ includeHidden: true });
+      return snapshot.categories.map((category) => ({
+        ...category,
+        productCount: snapshot.products.filter(
+          (product) => product.categoryId === category.id
+        ).length
+      }));
     },
 
-    async updateCategory(id, input): Promise<CategoryRecord | null> {
-      const [category] = await client.db
-        .update(categories)
-        .set({ ...input, updatedAt: new Date() })
-        .where(eq(categories.id, id))
-        .returning();
+    async getProductsForQuote(
+      productIds
+    ): Promise<readonly CatalogQuoteProduct[]> {
+      if (productIds.length === 0) {
+        return [];
+      }
 
-      return category ?? null;
+      return client.db
+        .select({
+          id: products.id,
+          priceMinor: products.priceMinor
+        })
+        .from(products)
+        .innerJoin(categories, eq(products.categoryId, categories.id))
+        .where(
+          and(
+            inArray(products.id, [...productIds]),
+            eq(products.isVisible, true),
+            eq(categories.isVisible, true)
+          )
+        );
+    },
+
+    async getProductsForCheckout(
+      productIds
+    ): Promise<readonly CatalogCheckoutProduct[]> {
+      if (productIds.length === 0) {
+        return [];
+      }
+
+      return client.db
+        .select({
+          id: products.id,
+          name: products.name,
+          priceMinor: products.priceMinor
+        })
+        .from(products)
+        .innerJoin(categories, eq(products.categoryId, categories.id))
+        .where(
+          and(
+            inArray(products.id, [...productIds]),
+            eq(products.isVisible, true),
+            eq(categories.isVisible, true)
+          )
+        );
+    },
+
+    async createCategory(input, metadata): Promise<CategoryRecord> {
+      assertMutationMetadata(metadata);
+      try {
+        return await client.db.transaction(async (tx) => {
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(hashtextextended(${metadata.idempotencyKey}, 0))`
+          );
+          const [known] = await tx
+            .select()
+            .from(categoryVersions)
+            .where(eq(categoryVersions.idempotencyKey, metadata.idempotencyKey))
+            .limit(1);
+          if (known !== undefined) {
+            if (
+              known.payloadFingerprint !== metadata.payloadFingerprint ||
+              known.action !== "created"
+            ) {
+              throw new CatalogCategoryIdempotencyConflictError();
+            }
+            const [category] = await tx
+              .select()
+              .from(categories)
+              .where(eq(categories.id, known.categoryId))
+              .limit(1);
+            if (category === undefined) throw new CatalogCategoryConflictError();
+            return category;
+          }
+
+          const [category] = await tx
+            .insert(categories)
+            .values(createCategoryValues(input))
+            .returning();
+          if (category === undefined) throw new CatalogCategoryConflictError();
+
+          await tx.insert(categoryVersions).values({
+            categoryId: category.id,
+            version: category.version,
+            action: "created",
+            slug: category.slug,
+            name: category.name,
+            sortOrder: category.sortOrder,
+            isVisible: category.isVisible,
+            actorStaffUserId: metadata.actorStaffUserId,
+            requestId: metadata.requestId,
+            idempotencyKey: metadata.idempotencyKey,
+            payloadFingerprint: metadata.payloadFingerprint,
+            createdAt: metadata.now
+          });
+          return category;
+        });
+      } catch (error: unknown) {
+        if (isUniqueViolation(error)) throw new CatalogCategoryConflictError();
+        throw error;
+      }
+    },
+
+    async updateCategory(id, input, metadata): Promise<CategoryRecord | null> {
+      const categoryInput: {
+        name?: string;
+        sortOrder?: number;
+        isVisible?: boolean;
+      } = {};
+      if (input.name !== undefined) categoryInput.name = input.name;
+      if (input.sortOrder !== undefined) categoryInput.sortOrder = input.sortOrder;
+      if (input.isVisible !== undefined) categoryInput.isVisible = input.isVisible;
+      assertMutationMetadata(metadata, input.expectedVersion);
+      if (input.expectedVersion === undefined) {
+        throw new CatalogCategoryConflictError();
+      }
+      try {
+        return await client.db.transaction(async (tx) => {
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(hashtextextended(${metadata.idempotencyKey}, 0))`
+          );
+          const [known] = await tx
+            .select()
+            .from(categoryVersions)
+            .where(eq(categoryVersions.idempotencyKey, metadata.idempotencyKey))
+            .limit(1);
+          if (known !== undefined) {
+            if (
+              known.payloadFingerprint !== metadata.payloadFingerprint ||
+              known.categoryId !== id ||
+              known.action === "created"
+            ) {
+              throw new CatalogCategoryIdempotencyConflictError();
+            }
+            const [category] = await tx
+              .select()
+              .from(categories)
+              .where(eq(categories.id, id))
+              .limit(1);
+            return category ?? null;
+          }
+
+          const [current] = await tx
+            .select()
+            .from(categories)
+            .where(eq(categories.id, id))
+            .limit(1)
+            .for("update");
+          if (current === undefined) return null;
+          if (current.version !== input.expectedVersion) {
+            throw new CatalogCategoryVersionConflictError();
+          }
+          if (current.version >= 2_147_483_647) {
+            throw new CatalogCategoryConflictError();
+          }
+
+          const [category] = await tx
+            .update(categories)
+            .set({
+              ...categoryInput,
+              version: current.version + 1,
+              updatedAt: metadata.now
+            })
+            .where(
+              and(
+                eq(categories.id, id),
+                eq(categories.version, input.expectedVersion)
+              )
+            )
+            .returning();
+          if (category === undefined) throw new CatalogCategoryVersionConflictError();
+
+          await tx.insert(categoryVersions).values({
+            categoryId: category.id,
+            version: category.version,
+            action: category.isVisible ? "updated" : "archived",
+            slug: category.slug,
+            name: category.name,
+            sortOrder: category.sortOrder,
+            isVisible: category.isVisible,
+            actorStaffUserId: metadata.actorStaffUserId,
+            requestId: metadata.requestId,
+            idempotencyKey: metadata.idempotencyKey,
+            payloadFingerprint: metadata.payloadFingerprint,
+            createdAt: metadata.now
+          });
+          return category;
+        });
+      } catch (error: unknown) {
+        if (isUniqueViolation(error)) throw new CatalogCategoryConflictError();
+        throw error;
+      }
     },
 
     async createProduct(input): Promise<ProductRecord> {

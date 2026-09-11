@@ -1,10 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+import { E2E_ADMIN_URL, E2E_API_URL, E2E_CUSTOMER_URL } from "./urls";
+import { loginAdmin } from "./admin-auth";
+
 test("Admin publishes and hides a product seen by Customer", async ({
   browser,
   request
 }) => {
-  const availability = await request.get("http://127.0.0.1:3000/catalog");
+  const availability = await request.get(`${E2E_API_URL}/catalog`);
 
   test.skip(
     availability.status() === 503,
@@ -15,7 +18,8 @@ test("Admin publishes and hides a product seen by Customer", async ({
   const productName = `E2E шашлык ${Date.now()}`;
   const admin = await browser.newPage();
 
-  await admin.goto("http://127.0.0.1:5173", { waitUntil: "domcontentloaded" });
+  await admin.goto(E2E_ADMIN_URL, { waitUntil: "domcontentloaded" });
+  await loginAdmin(admin);
   await admin.getByRole("button", { name: "Добавить блюдо" }).click();
 
   const dialog = admin.getByRole("dialog");
@@ -39,7 +43,14 @@ test("Admin publishes and hides a product seen by Customer", async ({
   await expect(admin.getByText(productName)).toBeVisible();
 
   const customer = await browser.newPage();
-  await customer.goto("http://localhost:8082", { waitUntil: "domcontentloaded" });
+  await customer.goto(E2E_CUSTOMER_URL, { waitUntil: "domcontentloaded" });
+  await expect(customer.getByText(productName)).toBeVisible();
+  const search = customer.getByLabel("Поиск блюд");
+  await search.fill(productName.slice(0, 18));
+  await expect(customer.getByText(productName)).toBeVisible();
+  await search.fill("блюдо которого нет");
+  await expect(customer.getByText(/ничего не найдено/u)).toBeVisible();
+  await customer.getByLabel("Очистить поиск").click();
   await expect(customer.getByText(productName)).toBeVisible();
 
   const row = admin.locator("tr").filter({ hasText: productName });

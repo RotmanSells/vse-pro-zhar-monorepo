@@ -10,6 +10,9 @@ const CatalogSlugSchema = z
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
 
 const CatalogNameSchema = z.string().trim().min(1).max(160);
+const CatalogDateTimeSchema = z.iso.datetime({ offset: true });
+const CatalogPositiveVersionSchema = z.number().int().positive().max(2_147_483_647);
+const CatalogCountSchema = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 
 export const CatalogImageUrlSchema = z
   .string()
@@ -31,6 +34,37 @@ export const CatalogCategorySchema = z
   })
   .strict();
 export type CatalogCategory = z.infer<typeof CatalogCategorySchema>;
+
+export const CatalogAdminCategorySchema = CatalogCategorySchema.extend({
+  version: CatalogPositiveVersionSchema,
+  productCount: CatalogCountSchema,
+  createdAt: CatalogDateTimeSchema,
+  updatedAt: CatalogDateTimeSchema
+}).strict();
+export type CatalogAdminCategory = z.infer<typeof CatalogAdminCategorySchema>;
+
+export const CatalogAdminCategoriesResponseSchema = z.object({
+  status: z.literal("confirmed"),
+  categories: z.array(CatalogAdminCategorySchema).max(10_000).readonly()
+}).strict();
+export type CatalogAdminCategoriesResponse = z.infer<
+  typeof CatalogAdminCategoriesResponseSchema
+>;
+
+export const CatalogAdminCategoryMutationSchema = CatalogAdminCategorySchema.omit({
+  productCount: true
+}).strict();
+export type CatalogAdminCategoryMutation = z.infer<
+  typeof CatalogAdminCategoryMutationSchema
+>;
+
+export const CatalogAdminCategoryResponseSchema = z.object({
+  status: z.literal("confirmed"),
+  category: CatalogAdminCategoryMutationSchema
+}).strict();
+export type CatalogAdminCategoryResponse = z.infer<
+  typeof CatalogAdminCategoryResponseSchema
+>;
 
 export const CatalogProductSchema = z
   .object({
@@ -98,14 +132,28 @@ export type CatalogCategoryInput = z.input<typeof CatalogCategoryInputSchema>;
 
 export const CatalogCategoryUpdateSchema = z
   .object({
-    slug: CatalogSlugSchema,
     name: CatalogNameSchema,
     sortOrder: z.number().int().min(0).max(100_000),
     isVisible: z.boolean()
   })
   .partial()
+  .extend({ expectedVersion: CatalogPositiveVersionSchema })
   .strict()
   .refine((value) => Object.keys(value).length > 0);
 export type CatalogCategoryUpdate = z.input<
   typeof CatalogCategoryUpdateSchema
+>;
+
+export const CatalogCategoryIdempotencyKeySchema = z
+  .string()
+  .min(1)
+  .max(255)
+  .refine((value) => [...value].every((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint >= 32 && codePoint !== 127;
+  }))
+  .transform((value) => value.trim())
+  .pipe(z.string().min(1).max(255));
+export type CatalogCategoryIdempotencyKey = z.infer<
+  typeof CatalogCategoryIdempotencyKeySchema
 >;

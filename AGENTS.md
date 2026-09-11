@@ -241,3 +241,24 @@ payment = succeeded
 * **🔴 MUST** — выполнять только scope активной задачи;
 * **🔴 MUST** — во время работы обновлять `Progress`, `Discoveries`, `Decision Log` и `Outcome` execution plan;
 * **🔴 MUST** — не переходить самостоятельно к следующей задаче после завершения активной.
+
+## 27. Единая PostgreSQL database
+
+* **🔴 MUST** — проект использует одну основную PostgreSQL database; для текущего проекта локальный canonical database — `vse_pro_zhar_dev`.
+* **🔴 MUST** — локальная разработка, ручная проверка в браузере, migrations и запуск Backend выполняются только с этой database через настроенный `DATABASE_URL`.
+* **🔴 MUST** — запрещено создавать, выбирать или подставлять `vse_pro_zhar_test`, другие `*_test` databases или отдельные локальные PostgreSQL databases.
+* **🔴 MUST** — отсутствие отдельной test database не компенсируется фиктивными business-данными в production runtime; unit-тесты используют test doubles только там, где это явно разрешено.
+* **🟡 SHOULD** — исторические execution plans и CI-конфигурация могут содержать старые изолированные проверки; их команды нельзя копировать в локальный запуск или ручную проверку.
+
+## 28. Prototype — обязательный visual source of truth
+
+Для Customer и Admin prototype в `/Users/rotman/Desktop/prototypes` является обязательным источником истины по визуальному дизайну.
+
+* **🔴 MUST** — при изменении Customer/Admin UI максимально точно повторять соответствующий prototype: header, tabbar/sidebar, цвета, градиенты, glow, шрифты, размеры, spacing, радиусы, shadows, карточки, кнопки, иконки, typography hierarchy, empty/loading/error states и responsive layout.
+* **🔴 MUST** — перед реализацией UI-задачи изучить соответствующий `index.html`/`admin.html` и сравнить результат с prototype визуально на ширинах `320`, `375`, `768` и `1024`.
+* **🔴 MUST** — нельзя самостоятельно изобретать альтернативный visual language, заменять prototype layout на «более удобный» или добавлять собственные декоративные элементы без явного решения owner.
+* **🔴 MUST** — нельзя считать UI-задачу завершённой, если функциональность работает, но визуально существенно отличается от prototype.
+* **🔴 MUST** — prototype-only business functionality не переносится автоматически: если экрана/функции нет в production system, UI не должен притворяться рабочим и не должен добавлять fake data, fake rewards или новую business logic.
+* **🟡 SHOULD** — если prototype содержит недоступную production-функцию, сохранять его visual composition только настолько, насколько это не вводит пользователя в заблуждение; unavailable/disabled state должен быть явно обозначен.
+* **🔴 MUST** — сохранять lego boundaries: contracts → API client/controller → screen UI; visual parity не является основанием для прямого доступа UI к Backend, PostgreSQL, iiko или provider.
+* **🔴 MUST** — после UI-изменений проверять существующие функции, accessibility labels, touch targets и отсутствие horizontal overflow; visual parity не должна ломать native iOS/Android targets.

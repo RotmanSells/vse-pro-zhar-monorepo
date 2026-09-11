@@ -13,6 +13,7 @@ import {
 
 import { buildApp } from "../src/app.js";
 import { loadConfig } from "../src/config/env.js";
+import { createMemoryStaffRepository, staffCookie, type MemoryStaffState } from "./staff-fixtures.js";
 import {
   createMediaStorage,
   MAX_MEDIA_UPLOAD_BYTES
@@ -44,17 +45,22 @@ async function createMultipartPayload(
 describe("media upload API", () => {
   let app: FastifyInstance;
   let mediaDirectory: string;
+  let staff: MemoryStaffState;
+  let adminSession: string;
 
   beforeEach(async () => {
     mediaDirectory = await mkdtemp(join(tmpdir(), "vse-pro-zhar-media-"));
+    staff = await createMemoryStaffRepository();
     app = buildApp(loadConfig({ APP_ENV: "test" }), {
       logger: false,
+      staffRepository: staff.repository,
       mediaStorage: createMediaStorage({
         directory: mediaDirectory,
         publicUrl: "http://127.0.0.1:3000"
       })
     });
     await app.ready();
+    adminSession = await staffCookie(app);
   });
 
   afterEach(async () => {
@@ -82,7 +88,7 @@ describe("media upload API", () => {
     const uploadResponse = await app.inject({
       method: "POST",
       url: "/admin/media/images",
-      headers: { "content-type": multipart.contentType },
+      headers: { "content-type": multipart.contentType, cookie: adminSession },
       payload: multipart.payload
     });
 
@@ -120,7 +126,7 @@ describe("media upload API", () => {
     const unsupportedResponse = await app.inject({
       method: "POST",
       url: "/admin/media/images",
-      headers: { "content-type": unsupported.contentType },
+      headers: { "content-type": unsupported.contentType, cookie: adminSession },
       payload: unsupported.payload
     });
 
@@ -137,12 +143,40 @@ describe("media upload API", () => {
     const malformedResponse = await app.inject({
       method: "POST",
       url: "/admin/media/images",
-      headers: { "content-type": malformed.contentType },
+      headers: { "content-type": malformed.contentType, cookie: adminSession },
       payload: malformed.payload
     });
 
     expect(malformedResponse.statusCode).toBe(400);
     expect(JSON.stringify(malformedResponse.json())).not.toContain("not a png");
+  });
+
+  it("rejects cross-origin Admin image uploads before storing a file", async () => {
+    const source = await sharp({
+      create: {
+        channels: 3,
+        height: 1,
+        background: { b: 45, g: 120, r: 220 },
+        width: 1
+      }
+    })
+      .png()
+      .toBuffer();
+    const multipart = await createMultipartPayload(source, "image/png", "dish.png");
+    const response = await app.inject({
+      method: "POST",
+      url: "/admin/media/images",
+      headers: {
+        "content-type": multipart.contentType,
+        origin: "https://attacker.example"
+      },
+      payload: multipart.payload
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(ApiErrorSchema.parse(response.json()).error.code).toBe(
+      "AUTHENTICATION_ERROR"
+    );
   });
 
   it("rejects files over the upload limit", async () => {
@@ -154,7 +188,7 @@ describe("media upload API", () => {
     const response = await app.inject({
       method: "POST",
       url: "/admin/media/images",
-      headers: { "content-type": oversized.contentType },
+      headers: { "content-type": oversized.contentType, cookie: adminSession },
       payload: oversized.payload
     });
 

@@ -1,0 +1,54 @@
+name: Customer Android preview APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Start cloud Android APK build
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}
+      EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
+    steps:
+      - name: Check EAS configuration
+        run: |
+          if [ -z "$EXPO_TOKEN" ] || [ -z "$EXPO_PUBLIC_EAS_PROJECT_ID" ]; then
+            echo "EXPO_TOKEN secret and EXPO_PUBLIC_EAS_PROJECT_ID variable are required"
+            exit 1
+          fi
+          if [ -z "$EXPO_PUBLIC_API_URL" ] || [[ "$EXPO_PUBLIC_API_URL" == *"localhost"* ]]; then
+            echo "EXPO_PUBLIC_API_URL must be a public Backend URL"
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.24.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.14.1
+          cache: pnpm
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start cloud APK build
+        working-directory: apps/customer
+        run: eas build --platform android --profile preview --environment preview --non-interactive --no-wait

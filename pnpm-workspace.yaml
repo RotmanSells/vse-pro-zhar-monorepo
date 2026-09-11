@@ -3,3 +3,6 @@ packages:
   - "packages/*"
 allowBuilds:
   esbuild: true
+overrides:
+  decode-uri-component: 0.5.0
+  uuid: 11.1.1

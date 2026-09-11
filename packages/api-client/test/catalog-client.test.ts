@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  CatalogAdminCategoryResponseSchema,
   CatalogResponseSchema,
   MediaUploadResponseSchema
 } from "@vse-pro-zhar/contracts";
@@ -58,6 +59,7 @@ describe("shared catalog client", () => {
     const fetchImpl = vi.fn<FetchImplementation>(async (url, init) => {
       expect(url).toBe("http://127.0.0.1:3000/catalog");
       expect(init?.method).toBe("GET");
+      expect(init?.credentials).toBe("include");
       expect(init?.headers).toEqual({ Accept: "application/json" });
       return makeResponse(validCatalog);
     });
@@ -90,6 +92,71 @@ describe("shared catalog client", () => {
       message: "Проверьте данные каталога"
     });
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("uses the Admin category contract and idempotency header", async () => {
+    const date = "2026-09-01T10:00:00.000Z";
+    const responseBody = CatalogAdminCategoryResponseSchema.parse({
+      status: "confirmed",
+      category: {
+        id: 2,
+        slug: "sauces",
+        name: "Соусы",
+        sortOrder: 25,
+        isVisible: true,
+        version: 1,
+        createdAt: date,
+        updatedAt: date
+      }
+    });
+    const fetchImpl = vi.fn<FetchImplementation>(async (url, init) => {
+      expect(url).toBe("http://127.0.0.1:3000/admin/categories");
+      expect(init?.method).toBe("POST");
+      expect(new Headers(init?.headers).get("Idempotency-Key")).toBe("category-create-1");
+      expect(JSON.parse(String(init?.body))).toEqual({
+        slug: "sauces",
+        name: "Соусы",
+        sortOrder: 25,
+        isVisible: true
+      });
+      return makeResponse(responseBody, 201);
+    });
+    const client = createCatalogClient({
+      apiUrl: "http://127.0.0.1:3000",
+      fetchImpl
+    });
+
+    await expect(client.createCategory({
+      slug: "sauces",
+      name: "Соусы",
+      sortOrder: 25,
+      isVisible: true
+    }, { idempotencyKey: "category-create-1" })).resolves.toMatchObject({
+      id: 2,
+      version: 1
+    });
+  });
+
+  it("surfaces category conflicts with a safe typed error", async () => {
+    const client = createCatalogClient({
+      apiUrl: "http://127.0.0.1:3000",
+      fetchImpl: async () => makeResponse({
+        error: {
+          code: "CATALOG_CATEGORY_CONFLICT",
+          message: "Категория изменена в другой сессии. Обновите данные",
+          requestId: "request-1"
+        }
+      }, 409)
+    });
+
+    await expect(client.updateCategory(1, {
+      name: "Шашлык",
+      expectedVersion: 1
+    }, { idempotencyKey: "category-update-1" })).rejects.toMatchObject({
+      kind: "conflict",
+      code: "CATALOG_CATEGORY_CONFLICT",
+      status: 409
+    });
   });
 
   it("normalizes API failures without exposing transport details", async () => {

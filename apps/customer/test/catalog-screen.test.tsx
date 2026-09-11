@@ -8,6 +8,7 @@ import {
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { CatalogResponse } from "@vse-pro-zhar/contracts";
+import type { AuthClient } from "@vse-pro-zhar/api-client";
 
 import type { CatalogReadClient } from "../src/api/catalog-client";
 import { CatalogClientError } from "../src/api/catalog-client";
@@ -16,10 +17,13 @@ import { CatalogScreen } from "../src/components/catalog-screen";
 vi.mock("react-native", () => ({
   ActivityIndicator: "ActivityIndicator",
   Image: "Image",
+  Modal: "Modal",
   Pressable: "Pressable",
+  Platform: { OS: "web" },
   SafeAreaView: "SafeAreaView",
   ScrollView: "ScrollView",
   Text: "Text",
+  TextInput: "TextInput",
   View: "View"
 }));
 
@@ -136,12 +140,23 @@ describe("Customer catalog screen", () => {
         return request.promise;
       }
     };
+    const authClient: AuthClient = {
+      identify: async () => ({
+        customer: { phone: "+79991234567", name: "Анна", birthDate: null },
+        session: { token: null, expiresAt: "2026-09-01T10:00:00.000Z" }
+      }),
+      me: async () => ({
+        customer: { phone: "+79991234567", name: "Анна", birthDate: null },
+        session: { expiresAt: "2026-09-01T10:00:00.000Z" }
+      }),
+      logout: async () => ({ loggedOut: true })
+    };
     let createdRenderer: ReactTestRenderer | null = null;
 
     await act(async () => {
       createdRenderer = create(
         <StrictMode>
-          <CatalogScreen client={client} />
+          <CatalogScreen authClient={authClient} client={client} />
         </StrictMode>
       );
       await flushPromises();
@@ -188,5 +203,37 @@ describe("Customer catalog screen", () => {
       renderer.unmount();
       await flushPromises();
     });
+  });
+
+  it("filters visible dishes by name, description and category and can clear the query", async () => {
+    const client: CatalogReadClient = { getCatalog: async () => firstCatalog };
+    const authClient: AuthClient = {
+      identify: async () => ({ customer: { phone: "+79991234567", name: "Анна", birthDate: null }, session: { token: null, expiresAt: "2026-09-01T10:00:00.000Z" } }),
+      me: async () => ({ customer: { phone: "+79991234567", name: "Анна", birthDate: null }, session: { expiresAt: "2026-09-01T10:00:00.000Z" } }),
+      logout: async () => ({ loggedOut: true })
+    };
+    let createdRenderer: ReactTestRenderer | null = null;
+    await act(async () => {
+      createdRenderer = create(<CatalogScreen authClient={authClient} client={client} />);
+      await flushPromises();
+    });
+    const renderer = requireRenderer(createdRenderer);
+    const search = renderer.root.find((node) => node.props["accessibilityLabel"] === "Поиск блюд");
+
+    await act(async () => search.props["onChangeText"]("BBQ"));
+    expect(hasText(renderer, "Крылья BBQ")).toBe(true);
+    expect(hasText(renderer, "Шашлык из свинины")).toBe(false);
+
+    await act(async () => search.props["onChangeText"]("шашлык"));
+    expect(hasText(renderer, "Шашлык из свинины")).toBe(true);
+    expect(hasText(renderer, "Крылья BBQ")).toBe(false);
+
+    await act(async () => search.props["onChangeText"]("неизвестное блюдо"));
+    expect(hasText(renderer, "ничего не найдено")).toBe(true);
+    const clear = renderer.root.find((node) => node.props["accessibilityLabel"] === "Очистить поиск");
+    await act(async () => clear.props["onPress"]());
+    expect(hasText(renderer, "Шашлык из свинины")).toBe(true);
+    expect(hasText(renderer, "Крылья BBQ")).toBe(true);
+    await act(async () => renderer.unmount());
   });
 });

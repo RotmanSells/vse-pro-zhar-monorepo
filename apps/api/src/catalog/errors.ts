@@ -24,3 +24,14 @@ export class CatalogNotFoundError extends ApiRequestError {
     this.name = "CatalogNotFoundError";
   }
 }
+
+export class CartItemUnavailableError extends ApiRequestError {
+  constructor() {
+    super(
+      "CART_ITEM_UNAVAILABLE",
+      409,
+      "One or more cart items are no longer available"
+    );
+    this.name = "CartItemUnavailableError";
+  }
+}

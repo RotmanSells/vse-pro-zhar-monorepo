@@ -8,6 +8,160 @@
       "when": 1788209135647,
       "tag": "0000_puzzling_edwin_jarvis",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788247930451,
+      "tag": "0001_lying_may_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788259614666,
+      "tag": "0002_watery_toxin",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788267095984,
+      "tag": "0003_nosy_boomerang",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788509327111,
+      "tag": "0004_ambitious_spacker_dave",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788509541854,
+      "tag": "0005_mute_ikaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788520000000,
+      "tag": "0006_m11_admin_orders",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788520001000,
+      "tag": "0007_m11_audit_retention",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788520002000,
+      "tag": "0008_m11_customer_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788533499911,
+      "tag": "0009_remove_staff_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788535000000,
+      "tag": "0010_m12_cancellation_refund",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788540000000,
+      "tag": "0011_m13_loyalty",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788541000000,
+      "tag": "0012_m14_wheel_quests",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788541001000,
+      "tag": "0013_m14_spin_description",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788800000000,
+      "tag": "0014_m16_promos",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1788870000000,
+      "tag": "0015_m16_5_communications_persistence",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1788870001000,
+      "tag": "0016_m16_5_communications_preview_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788900000000,
+      "tag": "0017_m14_2_quest_definition_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788900002000,
+      "tag": "0018_m14_3_wheel_settings_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789000003000,
+      "tag": "0019_m13_5_loyalty_rewards_redemption",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789000004000,
+      "tag": "0020_m14_4_wheel_prize_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789000005000,
+      "tag": "0021_m16_7_category_management",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1789000006000,
+      "tag": "0022_m15_push_sms",
+      "breakpoints": true
     }
   ]
 }

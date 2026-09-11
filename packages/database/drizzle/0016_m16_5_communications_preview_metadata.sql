@@ -1,0 +1,3 @@
+ALTER TABLE "communication_drafts" DROP CONSTRAINT "communication_drafts_preview_metadata_check";
+--> statement-breakpoint
+ALTER TABLE "communication_drafts" ADD CONSTRAINT "communication_drafts_preview_metadata_check" CHECK ((("preview_count" IS NULL AND "preview_generated_at" IS NULL AND "preview_segment_as_of" IS NULL) OR ("preview_count" IS NOT NULL AND "preview_count" >= 0 AND "preview_generated_at" IS NOT NULL AND "preview_segment_as_of" IS NOT NULL)) AND ("status" <> 'previewed' OR ("preview_count" IS NOT NULL AND "preview_generated_at" IS NOT NULL AND "preview_segment_as_of" IS NOT NULL)));

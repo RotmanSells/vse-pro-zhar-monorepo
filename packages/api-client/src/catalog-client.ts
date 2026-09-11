@@ -1,7 +1,9 @@
 import {
   ApiErrorSchema,
+  CatalogAdminCategoriesResponseSchema,
+  CatalogAdminCategoryResponseSchema,
+  CatalogCategoryIdempotencyKeySchema,
   CatalogCategoryInputSchema,
-  CatalogCategorySchema,
   CatalogCategoryUpdateSchema,
   CatalogProductInputSchema,
   CatalogProductSchema,
@@ -9,6 +11,7 @@ import {
   CatalogResponseSchema,
   MediaUploadResponseSchema,
   type CatalogCategory,
+  type CatalogAdminCategoriesResponse,
   type CatalogCategoryInput,
   type CatalogCategoryUpdate,
   type CatalogProduct,
@@ -29,15 +32,27 @@ export type CatalogClientErrorKind =
   | "timeout"
   | "aborted"
   | "invalid_response"
-  | "validation";
+  | "validation"
+  | "authentication"
+  | "forbidden"
+  | "conflict";
 
 export class CatalogClientError extends Error {
   readonly kind: CatalogClientErrorKind;
+  readonly code: string | null;
+  readonly status: number | null;
 
-  constructor(kind: CatalogClientErrorKind, message: string) {
+  constructor(
+    kind: CatalogClientErrorKind,
+    message: string,
+    code: string | null = null,
+    status: number | null = null
+  ) {
     super(message);
     this.name = "CatalogClientError";
     this.kind = kind;
+    this.code = code;
+    this.status = status;
   }
 }
 
@@ -49,6 +64,7 @@ export interface CatalogClientOptions {
 
 export interface CatalogRequestOptions {
   readonly signal?: AbortSignal;
+  readonly idempotencyKey?: string;
 }
 
 export interface CatalogReadClient {
@@ -57,10 +73,12 @@ export interface CatalogReadClient {
 
 export interface CatalogAdminClient {
   getAdminCatalog(options?: CatalogRequestOptions): Promise<CatalogResponse>;
-  createCategory(input: CatalogCategoryInput): Promise<CatalogCategory>;
+  listCategories?(options?: CatalogRequestOptions): Promise<CatalogAdminCategoriesResponse>;
+  createCategory(input: CatalogCategoryInput, options?: CatalogRequestOptions): Promise<CatalogCategory>;
   updateCategory(
     id: number,
-    input: CatalogCategoryUpdate
+    input: CatalogCategoryUpdate,
+    options?: CatalogRequestOptions
   ): Promise<CatalogCategory>;
   uploadImage(file: Blob): Promise<MediaUploadResponse>;
   createProduct(input: CatalogProductInput): Promise<CatalogProduct>;
@@ -148,12 +166,31 @@ function createValidationError(): CatalogClientError {
   return new CatalogClientError("validation", "Проверьте данные каталога");
 }
 
-function getHttpErrorMessage(body: unknown): string {
-  const parsed = ApiErrorSchema.safeParse(body);
+function createIdempotencyKey(): string {
+  const cryptoObject = globalThis.crypto;
+  return typeof cryptoObject?.randomUUID === "function"
+    ? cryptoObject.randomUUID()
+    : `catalog-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
-  return parsed.success
+function mutationRequestOptions(options: CatalogRequestOptions): CatalogRequestOptions {
+  const key = options.idempotencyKey ?? createIdempotencyKey();
+  const parsed = CatalogCategoryIdempotencyKeySchema.safeParse(key);
+  if (!parsed.success) throw createValidationError();
+  return { ...options, idempotencyKey: parsed.data };
+}
+
+function getHttpError(body: unknown, status: number): CatalogClientError {
+  const parsed = ApiErrorSchema.safeParse(body);
+  const code = parsed.success ? parsed.data.error.code : null;
+  const message = parsed.success
     ? parsed.data.error.message
     : "Каталог временно недоступен";
+  if (status === 401) return new CatalogClientError("authentication", message, code, status);
+  if (status === 403) return new CatalogClientError("forbidden", message, code, status);
+  if (status === 400) return new CatalogClientError("validation", message, code, status);
+  if (status === 409) return new CatalogClientError("conflict", message, code, status);
+  return new CatalogClientError("http", message, code, status);
 }
 
 function parseInput<T>(schema: { safeParse: (value: unknown) => unknown }, value: unknown): T {
@@ -222,11 +259,15 @@ async function requestJson<T>(
         });
 
   const headers: HeadersInit = { Accept: "application/json" };
+  if (requestOptions.idempotencyKey !== undefined) {
+    headers["Idempotency-Key"] = requestOptions.idempotencyKey;
+  }
   if (body !== undefined && !isFormDataBody(body)) {
     headers["Content-Type"] = "application/json";
   }
 
   const init: RequestInit = {
+    credentials: "include",
     method,
     headers,
     signal: requestController.signal
@@ -252,7 +293,7 @@ async function requestJson<T>(
       throwIfAborted(timedOut, externalSignal);
 
       if (!response.ok) {
-        throw new CatalogClientError("http", getHttpErrorMessage(responseBody));
+        throw getHttpError(responseBody, response.status);
       }
 
       const parsed = responseSchema.safeParse(responseBody) as
@@ -320,14 +361,7 @@ const zProductMutationResponse = {
 
 const CatalogCategoryMutationResponseSchema = {
   safeParse(value: unknown): unknown {
-    if (typeof value !== "object" || value === null || !("category" in value)) {
-      return { success: false };
-    }
-
-    const category = CatalogCategorySchema.safeParse(value.category);
-    return category.success
-      ? { success: true, data: { category: category.data } }
-      : { success: false };
+    return CatalogAdminCategoryResponseSchema.safeParse(value);
   }
 };
 
@@ -375,7 +409,20 @@ export function createCatalogClient(options: CatalogClientOptions): CatalogClien
       );
     },
 
-    async createCategory(input): Promise<CatalogCategory> {
+    async listCategories(requestOptions = {}): Promise<CatalogAdminCategoriesResponse> {
+      return requestJson(
+        apiUrl,
+        fetchImpl,
+        timeoutMs,
+        "/admin/categories",
+        "GET",
+        CatalogAdminCategoriesResponseSchema,
+        undefined,
+        requestOptions
+      );
+    },
+
+    async createCategory(input, requestOptions = {}): Promise<CatalogCategory> {
       const validInput = parseInput<CatalogCategoryInput>(
         CatalogCategoryInputSchema,
         input
@@ -389,14 +436,17 @@ export function createCatalogClient(options: CatalogClientOptions): CatalogClien
         "/admin/categories",
         "POST",
         CatalogCategoryMutationResponseSchema,
-        { category: validInput },
-        {}
+        validInput,
+        mutationRequestOptions(requestOptions)
       );
 
       return unwrapCategory(response);
     },
 
-    async updateCategory(id, input): Promise<CatalogCategory> {
+    async updateCategory(id, input, requestOptions = {}): Promise<CatalogCategory> {
+      if (!Number.isSafeInteger(id) || id < 1) {
+        throw createValidationError();
+      }
       const validInput = parseInput<CatalogCategoryUpdate>(
         CatalogCategoryUpdateSchema,
         input
@@ -411,7 +461,7 @@ export function createCatalogClient(options: CatalogClientOptions): CatalogClien
         "PATCH",
         CatalogCategoryMutationResponseSchema,
         validInput,
-        {}
+        mutationRequestOptions(requestOptions)
       );
 
       return unwrapCategory(response);

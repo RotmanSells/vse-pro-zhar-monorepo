@@ -2,16 +2,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   CatalogClientError,
+  createAdminCategoriesRequestController,
   createCatalogRequestController,
+  type AdminCategoriesRequestController,
+  type AdminCategoriesState,
   type CatalogAdminClient,
   type CatalogRequestController,
   type CatalogRequestState
 } from "@vse-pro-zhar/api-client";
 import type {
+  CatalogAdminCategory,
+  CatalogAdminCategoriesResponse,
   CatalogProduct,
   CatalogProductInput,
   CatalogProductUpdate
 } from "@vse-pro-zhar/contracts";
+
+import { useModalBehavior } from "./modal-behavior";
 
 interface ProductFormState {
   readonly name: string;
@@ -28,6 +35,17 @@ interface ProductRow {
   readonly categoryName: string;
   readonly product: CatalogProduct;
 }
+
+interface CategoryFormState {
+  readonly slug: string;
+  readonly name: string;
+  readonly sortOrder: string;
+  readonly isVisible: boolean;
+}
+
+type PendingCategoryAction =
+  | { readonly kind: "create"; readonly input: { readonly slug: string; readonly name: string; readonly sortOrder: number; readonly isVisible: boolean }; readonly idempotencyKey: string }
+  | { readonly kind: "update"; readonly id: number; readonly input: { readonly name: string; readonly sortOrder: number; readonly isVisible: boolean; readonly expectedVersion: number }; readonly idempotencyKey: string };
 
 type ImageUploadStatus = "idle" | "uploading" | "success" | "error";
 
@@ -50,6 +68,13 @@ const EMPTY_FORM: ProductFormState = {
   tag: "",
   emoji: "🍽️",
   imageUrl: "",
+  isVisible: true
+};
+
+const EMPTY_CATEGORY_FORM: CategoryFormState = {
+  slug: "",
+  name: "",
+  sortOrder: "0",
   isVisible: true
 };
 
@@ -121,8 +146,45 @@ function getMutationMessage(error: unknown): string {
   return "Не удалось сохранить изменения";
 }
 
+function createIdempotencyKey(): string {
+  const cryptoObject = globalThis.crypto;
+  return typeof cryptoObject?.randomUUID === "function"
+    ? cryptoObject.randomUUID()
+    : `admin-category-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function categoryResponseFromCatalog(
+  catalog: CatalogRequestState
+): CatalogAdminCategoriesResponse | null {
+  if (catalog.status !== "success") return null;
+  const timestamp = new Date(0).toISOString();
+  return {
+    status: "confirmed",
+    categories: catalog.catalog.categories.map((category) => ({
+      ...category,
+      version: 1,
+      productCount: category.products.length,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    }))
+  };
+}
+
+function visibleProductCount(
+  catalog: CatalogRequestState,
+  categoryId: number
+): number | null {
+  if (catalog.status !== "success") return null;
+  return catalog.catalog.categories
+    .find((category) => category.id === categoryId)
+    ?.products.filter((product) => product.isVisible).length ?? 0;
+}
+
 export function CatalogScreen({ client }: CatalogScreenProps): React.JSX.Element {
   const [catalogState, setCatalogState] = useState<CatalogRequestState>({
+    status: "loading"
+  });
+  const [categoryState, setCategoryState] = useState<AdminCategoriesState>({
     status: "loading"
   });
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -138,9 +200,18 @@ export function CatalogScreen({ client }: CatalogScreenProps): React.JSX.Element
     useState<ImageUploadStatus>("idle");
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<CatalogAdminCategory | null>(null);
+  const [categoryForm, setCategoryForm] = useState<CategoryFormState>(EMPTY_CATEGORY_FORM);
+  const [categoryMutationError, setCategoryMutationError] = useState<string | null>(null);
+  const [isCategorySaving, setIsCategorySaving] = useState(false);
   const controllerRef = useRef<CatalogRequestController | null>(null);
+  const categoryControllerRef = useRef<AdminCategoriesRequestController | null>(null);
+  const pendingCategoryActionRef = useRef<PendingCategoryAction | null>(null);
   const imagePreviewRef = useRef<string | null>(null);
   const imageUploadSequenceRef = useRef(0);
+  const productModalRef = useRef<HTMLFormElement>(null);
+  const categoryModalRef = useRef<HTMLFormElement>(null);
 
   const clearImagePreview = useCallback((): void => {
     const currentPreview = imagePreviewRef.current;
@@ -185,8 +256,37 @@ export function CatalogScreen({ client }: CatalogScreenProps): React.JSX.Element
     };
   }, [adminReadClient]);
 
+  const adminCategoryClient = useMemo(() => {
+    if (client.listCategories === undefined) return null;
+    return { listCategories: client.listCategories.bind(client) };
+  }, [client]);
+
+  useEffect(() => {
+    if (adminCategoryClient === null) return;
+    const controller = createAdminCategoriesRequestController(
+      adminCategoryClient,
+      setCategoryState
+    );
+    categoryControllerRef.current = controller;
+    controller.start();
+    return () => {
+      controller.dispose();
+      if (categoryControllerRef.current === controller) {
+        categoryControllerRef.current = null;
+      }
+    };
+  }, [adminCategoryClient]);
+
+  useEffect(() => {
+    if (adminCategoryClient !== null) return;
+    const response = categoryResponseFromCatalog(catalogState);
+    if (response !== null) setCategoryState({ status: "success", response });
+  }, [adminCategoryClient, catalogState]);
+
   const categories =
     catalogState.status === "success" ? catalogState.catalog.categories : [];
+  const adminCategories =
+    categoryState.status === "success" ? categoryState.response.categories : [];
   const productRows = useMemo(
     () => getProductRows(catalogState),
     [catalogState]
@@ -237,9 +337,186 @@ export function CatalogScreen({ client }: CatalogScreenProps): React.JSX.Element
     }
   }, [isSaving, resetImageUploadState]);
 
+  useModalBehavior(productModalRef, closeModal);
+
   const refreshCatalog = useCallback((): void => {
     controllerRef.current?.retry();
   }, []);
+
+  const refreshCategories = useCallback((): void => {
+    if (adminCategoryClient !== null) {
+      categoryControllerRef.current?.retry();
+    } else {
+      refreshCatalog();
+    }
+  }, [adminCategoryClient, refreshCatalog]);
+
+  const closeCategoryModal = useCallback((): void => {
+    if (!isCategorySaving) {
+      setCategoryModalOpen(false);
+      setCategoryMutationError(null);
+      pendingCategoryActionRef.current = null;
+    }
+  }, [isCategorySaving]);
+
+  useModalBehavior(categoryModalRef, closeCategoryModal);
+
+  const openCreateCategoryModal = useCallback((): void => {
+    setEditingCategory(null);
+    setCategoryForm(EMPTY_CATEGORY_FORM);
+    setCategoryMutationError(null);
+    pendingCategoryActionRef.current = null;
+    setCategoryModalOpen(true);
+  }, []);
+
+  const openEditCategoryModal = useCallback((category: CatalogAdminCategory): void => {
+    setEditingCategory(category);
+    setCategoryForm({
+      slug: category.slug,
+      name: category.name,
+      sortOrder: String(category.sortOrder),
+      isVisible: category.isVisible
+    });
+    setCategoryMutationError(null);
+    pendingCategoryActionRef.current = null;
+    setCategoryModalOpen(true);
+  }, []);
+
+  const updateCategoryForm = useCallback(
+    <K extends keyof CategoryFormState>(key: K, value: CategoryFormState[K]) => {
+      setCategoryForm((current) => ({ ...current, [key]: value }));
+    },
+    []
+  );
+
+  const runCategoryAction = useCallback(
+    async (action: PendingCategoryAction): Promise<void> => {
+      pendingCategoryActionRef.current = action;
+      setCategoryMutationError(null);
+      setIsCategorySaving(true);
+      try {
+        if (action.kind === "create") {
+          await client.createCategory(action.input, {
+            idempotencyKey: action.idempotencyKey
+          });
+        } else {
+          await client.updateCategory(action.id, action.input, {
+            idempotencyKey: action.idempotencyKey
+          });
+        }
+        pendingCategoryActionRef.current = null;
+        setCategoryModalOpen(false);
+        refreshCategories();
+        refreshCatalog();
+      } catch (error: unknown) {
+        setCategoryMutationError(getMutationMessage(error));
+      } finally {
+        setIsCategorySaving(false);
+      }
+    },
+    [client, refreshCategories, refreshCatalog]
+  );
+
+  const saveCategory = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+      event.preventDefault();
+      const sortOrder = Number(categoryForm.sortOrder);
+      if (
+        categoryForm.name.trim() === "" ||
+        !Number.isSafeInteger(sortOrder) ||
+        sortOrder < 0
+      ) {
+        setCategoryMutationError("Укажите название и целое значение порядка не меньше 0");
+        return;
+      }
+
+      if (editingCategory === null) {
+        await runCategoryAction({
+          kind: "create",
+          input: {
+            slug: categoryForm.slug,
+            name: categoryForm.name,
+            sortOrder,
+            isVisible: categoryForm.isVisible
+          },
+          idempotencyKey: createIdempotencyKey()
+        });
+        return;
+      }
+
+      await runCategoryAction({
+        kind: "update",
+        id: editingCategory.id,
+        input: {
+          name: categoryForm.name,
+          sortOrder,
+          isVisible: categoryForm.isVisible,
+          expectedVersion: editingCategory.version
+        },
+        idempotencyKey: createIdempotencyKey()
+      });
+    },
+    [categoryForm, editingCategory, runCategoryAction]
+  );
+
+  const retryCategoryAction = useCallback((): void => {
+    const action = pendingCategoryActionRef.current;
+    if (action !== null) void runCategoryAction(action);
+  }, [runCategoryAction]);
+
+  const hideOrRestoreCategory = useCallback(
+    async (category: CatalogAdminCategory): Promise<void> => {
+      const visibleCount = visibleProductCount(catalogState, category.id);
+      if (
+        category.isVisible &&
+        (visibleCount === null ? category.productCount > 0 : visibleCount > 0)
+      ) {
+        if (
+          typeof window !== "undefined" &&
+          !window.confirm(
+            `В категории «${category.name}» есть видимые блюда. Скрыть категорию?`
+          )
+        ) {
+          return;
+        }
+      }
+      await runCategoryAction({
+        kind: "update",
+        id: category.id,
+        input: {
+          name: category.name,
+          sortOrder: category.sortOrder,
+          isVisible: !category.isVisible,
+          expectedVersion: category.version
+        },
+        idempotencyKey: createIdempotencyKey()
+      });
+    },
+    [catalogState, runCategoryAction]
+  );
+
+  const moveCategory = useCallback(
+    async (category: CatalogAdminCategory, direction: "up" | "down"): Promise<void> => {
+      const index = adminCategories.findIndex((item) => item.id === category.id);
+      const adjacent = adminCategories[direction === "up" ? index - 1 : index + 1];
+      if (index < 0 || adjacent === undefined) return;
+      const sortOrder = direction === "up"
+        ? Math.max(0, adjacent.sortOrder - 1)
+        : adjacent.sortOrder + 1;
+      await runCategoryAction({
+        kind: "update",
+        id: category.id,
+        input: {
+          name: category.name,
+          sortOrder,
+          isVisible: category.isVisible,
+          expectedVersion: category.version
+        },
+        idempotencyKey: createIdempotencyKey()
+      });
+    },
+    [adminCategories, runCategoryAction]
+  );
 
   const updateForm = useCallback(
     <K extends keyof ProductFormState>(key: K, value: ProductFormState[K]) => {
@@ -409,6 +686,93 @@ export function CatalogScreen({ client }: CatalogScreenProps): React.JSX.Element
         </div>
       ) : null}
 
+      <div className="table-card category-management-card">
+        <div className="table-header category-management-header">
+          <div>
+            <h2>Категории меню ({adminCategories.length})</h2>
+            <p className="category-management-note">
+              Порядок, видимость и история изменений принадлежат Backend.
+            </p>
+          </div>
+          <button className="btn btn-primary" onClick={openCreateCategoryModal} type="button">
+            <span aria-hidden="true">＋</span> Добавить категорию
+          </button>
+        </div>
+
+        {categoryState.status === "loading" ? (
+          <div className="catalog-state category-inline-state" role="status">
+            Загружаем категории…
+          </div>
+        ) : null}
+        {categoryState.status === "error" ? (
+          <div className="catalog-state catalog-state-error category-inline-state" role="alert">
+            <strong>Категории временно недоступны</strong>
+            <span>{categoryState.message}</span>
+            <button className="btn btn-outline" onClick={refreshCategories} type="button">
+              Повторить
+            </button>
+          </div>
+        ) : null}
+        {categoryMutationError !== null ? (
+          <div className="catalog-action-error category-action-error" role="alert">
+            <span>{categoryMutationError}</span>
+            <div className="row-actions">
+              <button className="btn btn-sm btn-outline" disabled={isCategorySaving} onClick={retryCategoryAction} type="button">
+                Повторить
+              </button>
+              <button className="btn btn-sm btn-outline" disabled={isCategorySaving} onClick={refreshCategories} type="button">
+                Обновить данные
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {categoryState.status === "success" ? (
+          adminCategories.length === 0 ? (
+            <div className="table-empty">Категорий пока нет. Создайте первую категорию.</div>
+          ) : (
+            <div className="table-scroll">
+              <table className="category-management-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Название</th>
+                    <th scope="col">Slug</th>
+                    <th scope="col">Блюда</th>
+                    <th scope="col">Порядок</th>
+                    <th scope="col">Статус</th>
+                    <th scope="col">Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminCategories.map((category, index) => (
+                    <tr key={category.id}>
+                      <td data-label="Название"><strong>{category.name}</strong></td>
+                      <td data-label="Slug"><code>{category.slug}</code></td>
+                      <td data-label="Блюда">{category.productCount}</td>
+                      <td data-label="Порядок">{category.sortOrder}</td>
+                      <td data-label="Статус">
+                        <span className={`status-badge ${category.isVisible ? "status-visible" : "status-hidden"}`}>
+                          {category.isVisible ? "В меню" : "Скрыта"}
+                        </span>
+                      </td>
+                      <td data-label="Действия">
+                        <div className="row-actions category-row-actions">
+                          <button aria-label={`Поднять категорию ${category.name}`} className="btn btn-sm btn-outline" disabled={isCategorySaving || index === 0} onClick={() => void moveCategory(category, "up")} type="button">↑</button>
+                          <button aria-label={`Опустить категорию ${category.name}`} className="btn btn-sm btn-outline" disabled={isCategorySaving || index === adminCategories.length - 1} onClick={() => void moveCategory(category, "down")} type="button">↓</button>
+                          <button aria-label={`Редактировать категорию ${category.name}`} className="btn btn-sm btn-outline" disabled={isCategorySaving} onClick={() => openEditCategoryModal(category)} type="button">Изменить</button>
+                          <button aria-label={`${category.isVisible ? "Скрыть" : "Вернуть"} категорию ${category.name}`} className="btn btn-sm btn-outline" disabled={isCategorySaving} onClick={() => void hideOrRestoreCategory(category)} type="button">
+                            {category.isVisible ? "Скрыть" : "Вернуть"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : null}
+      </div>
+
       {catalogState.status === "success" ? (
         <div className="table-card">
           <div className="table-header">
@@ -466,10 +830,17 @@ export function CatalogScreen({ client }: CatalogScreenProps): React.JSX.Element
                         {product.imageUrl !== null ? (
                           <img
                             alt=""
+                            height={48}
+                            key={product.imageUrl}
+                            loading="lazy"
                             onError={(event) => {
                               event.currentTarget.style.display = "none";
                             }}
+                            onLoad={(event) => {
+                              event.currentTarget.style.display = "";
+                            }}
                             src={product.imageUrl}
+                            width={48}
                           />
                         ) : null}
                       </div>
@@ -541,12 +912,21 @@ export function CatalogScreen({ client }: CatalogScreenProps): React.JSX.Element
 
       {modalOpen ? (
         <div
-          aria-labelledby="product-modal-title"
-          aria-modal="true"
           className="modal-overlay show"
-          role="dialog"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeModal();
+          }}
+          role="presentation"
         >
-          <form className="modal-box" onSubmit={(event) => void saveProduct(event)}>
+          <form
+            aria-labelledby="product-modal-title"
+            aria-modal="true"
+            className="modal-box"
+            onSubmit={(event) => void saveProduct(event)}
+            ref={productModalRef}
+            role="dialog"
+            tabIndex={-1}
+          >
             <h2 id="product-modal-title">
               {editingProduct === null ? "Новое блюдо" : "Редактировать блюдо"}
             </h2>
@@ -659,7 +1039,12 @@ export function CatalogScreen({ client }: CatalogScreenProps): React.JSX.Element
               </p>
               {imagePreviewSource !== null ? (
                 <div className="image-upload-preview">
-                  <img alt="Предпросмотр фото" src={imagePreviewSource} />
+                  <img
+                    alt="Предпросмотр фото"
+                    height={180}
+                    src={imagePreviewSource}
+                    width={320}
+                  />
                   <span>
                     {imageUploadStatus === "uploading"
                       ? "Конвертируем и загружаем…"
@@ -704,6 +1089,85 @@ export function CatalogScreen({ client }: CatalogScreenProps): React.JSX.Element
                   : imageUploadStatus === "uploading"
                     ? "Загрузка…"
                     : "Сохранить"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {categoryModalOpen ? (
+        <div
+          className="modal-overlay show"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeCategoryModal();
+          }}
+          role="presentation"
+        >
+          <form
+            aria-describedby="category-modal-description"
+            aria-labelledby="category-modal-title"
+            aria-modal="true"
+            className="modal-box category-modal-box"
+            onSubmit={(event) => void saveCategory(event)}
+            ref={categoryModalRef}
+            role="dialog"
+            tabIndex={-1}
+          >
+            <h2 id="category-modal-title">
+              {editingCategory === null ? "Новая категория" : "Редактировать категорию"}
+            </h2>
+            <p className="category-modal-description" id="category-modal-description">
+              Slug задаётся один раз и не меняется после создания. Архивирование категории не удаляет блюда и историю заказов.
+            </p>
+            <label className="form-group">
+              <span>Название</span>
+              <input
+                autoFocus
+                maxLength={160}
+                onChange={(event) => updateCategoryForm("name", event.target.value)}
+                placeholder="Шашлык"
+                required
+                value={categoryForm.name}
+              />
+            </label>
+            <label className="form-group">
+              <span>Slug</span>
+              <input
+                disabled={editingCategory !== null || isCategorySaving}
+                maxLength={80}
+                onChange={(event) => updateCategoryForm("slug", event.target.value)}
+                placeholder="shashlyk"
+                required
+                value={categoryForm.slug}
+              />
+            </label>
+            <label className="form-group">
+              <span>Порядок</span>
+              <input
+                inputMode="numeric"
+                min="0"
+                onChange={(event) => updateCategoryForm("sortOrder", event.target.value)}
+                required
+                type="number"
+                value={categoryForm.sortOrder}
+              />
+            </label>
+            <label className="category-visibility-toggle">
+              <input
+                checked={categoryForm.isVisible}
+                disabled={isCategorySaving}
+                onChange={(event) => updateCategoryForm("isVisible", event.target.checked)}
+                type="checkbox"
+              />
+              <span>Показывать категорию Customer</span>
+            </label>
+            {categoryMutationError !== null ? (
+              <div className="catalog-action-error" role="alert">{categoryMutationError}</div>
+            ) : null}
+            <div className="modal-actions">
+              <button className="btn btn-outline" disabled={isCategorySaving} onClick={closeCategoryModal} type="button">Отмена</button>
+              <button className="btn btn-primary" disabled={isCategorySaving} type="submit">
+                {isCategorySaving ? "Сохраняем…" : "Сохранить"}
               </button>
             </div>
           </form>

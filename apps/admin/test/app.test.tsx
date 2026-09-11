@@ -8,6 +8,7 @@ import {
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { HealthResponse } from "@vse-pro-zhar/contracts";
+import type { CatalogAdminClient } from "@vse-pro-zhar/api-client";
 
 import { App } from "../src/app";
 import type { HealthClient } from "../src/api/health-client";
@@ -131,5 +132,70 @@ describe("Admin health screen lifecycle", () => {
       renderer.unmount();
       await flushPromises();
     });
+  });
+
+  it("lets keyboard and pointer users close the mobile navigation backdrop", async () => {
+    const catalogClient: CatalogAdminClient = {
+      getAdminCatalog: async () => ({ categories: [] }),
+      createCategory: async () => { throw new Error("not used"); },
+      updateCategory: async () => { throw new Error("not used"); },
+      createProduct: async () => { throw new Error("not used"); },
+      updateProduct: async () => { throw new Error("not used"); },
+      uploadImage: async () => { throw new Error("not used"); }
+    };
+    let renderer: ReactTestRenderer | undefined;
+    await act(async () => {
+      renderer = create(<App client={catalogClient} />);
+      await flushPromises();
+    });
+    const menuButton = renderer?.root.find(
+      (node) => node.props["aria-label"] === "Открыть меню"
+    );
+    const backdrop = renderer?.root.find(
+      (node) => node.props["aria-label"] === "Закрыть меню"
+    );
+
+    expect(menuButton?.props["aria-expanded"]).toBe(false);
+    expect(backdrop?.props["disabled"]).toBe(true);
+    await act(async () => menuButton?.props["onClick"]());
+    expect(menuButton?.props["aria-expanded"]).toBe(true);
+    expect(backdrop?.props["disabled"]).toBe(false);
+    await act(async () => backdrop?.props["onClick"]());
+    expect(menuButton?.props["aria-expanded"]).toBe(false);
+    expect(backdrop?.props["disabled"]).toBe(true);
+    await act(async () => renderer?.unmount());
+  });
+
+  it("keeps every navigation item accessible when the tablet sidebar is collapsed", async () => {
+    const catalogClient: CatalogAdminClient = {
+      getAdminCatalog: async () => ({ categories: [] }),
+      createCategory: async () => { throw new Error("not used"); },
+      updateCategory: async () => { throw new Error("not used"); },
+      createProduct: async () => { throw new Error("not used"); },
+      updateProduct: async () => { throw new Error("not used"); },
+      uploadImage: async () => { throw new Error("not used"); }
+    };
+    let renderer: ReactTestRenderer | undefined;
+    await act(async () => {
+      renderer = create(<App client={catalogClient} />);
+      await flushPromises();
+    });
+
+    const navItems = renderer?.root.findAll((node) => node.props.className?.includes("nav-item")) ?? [];
+    expect(navItems).toHaveLength(11);
+    expect(navItems.map((node) => node.props["aria-label"])).toEqual([
+      "Дашборд",
+      "Заказы",
+      "Меню",
+      "Лояльность",
+      "Награды",
+      "Промокоды",
+      "Квесты",
+      "Колесо фортуны",
+      "Клиенты",
+      "Сегменты",
+      "Рассылки"
+    ]);
+    await act(async () => renderer?.unmount());
   });
 });

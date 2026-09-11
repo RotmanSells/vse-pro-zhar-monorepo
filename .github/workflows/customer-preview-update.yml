@@ -1,0 +1,66 @@
+name: Customer Android preview update
+
+on:
+  push:
+    branches:
+      - preview
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish Android preview OTA
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}
+      EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
+    steps:
+      - name: Check Expo token
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "GitHub Actions secret EXPO_TOKEN is required"
+            exit 1
+          fi
+          if [ -z "$EXPO_PUBLIC_EAS_PROJECT_ID" ]; then
+            echo "GitHub Actions variable EXPO_PUBLIC_EAS_PROJECT_ID is required"
+            exit 1
+          fi
+          if [ -z "$EXPO_PUBLIC_API_URL" ] || [[ "$EXPO_PUBLIC_API_URL" == *"localhost"* ]]; then
+            echo "GitHub Actions variable EXPO_PUBLIC_API_URL must be a public Backend URL"
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.24.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.14.1
+          cache: pnpm
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: |
+          pnpm --filter @vse-pro-zhar/contracts build
+          pnpm --filter @vse-pro-zhar/api-client build:root
+
+      - name: Publish Android preview update
+        working-directory: apps/customer
+        run: eas update --channel preview --environment preview --platform android --message "Android preview ${GITHUB_SHA}"

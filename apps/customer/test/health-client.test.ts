@@ -21,7 +21,7 @@ function makeResponse(body: unknown, status = 200): Response {
 describe("Customer health API boundary", () => {
   it("accepts a valid shared-contract response", async () => {
     const fetchImpl = vi.fn(async (url: string) => {
-      expect(url).toBe("http://127.0.0.1:3000/health");
+      expect(url).toBe("http://localhost:3000/health");
       return makeResponse(validHealthResponse);
     });
     const client = createHealthClient({ fetchImpl });
