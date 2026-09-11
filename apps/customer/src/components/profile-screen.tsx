@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LoggedPressable as Pressable } from "../debug/pressable";
+import { screenTrace } from "../debug/logger";
 
 import {
   createProfileRequestController,
@@ -153,6 +155,7 @@ function LoadingState(): React.JSX.Element {
 }
 
 export function ProfileScreen({ customer, client, notificationsClient, onBack, onOpenOrders, onRequireAuthentication, onTabSelect, onLogout, cartItemCount }: ProfileScreenProps): React.JSX.Element {
+  useEffect(() => screenTrace("profile"), []);
   const [state, setState] = useState<ProfileRequestState>({ status: "loading" });
   const [logoutState, setLogoutState] = useState<"idle" | "loading" | "error">("idle");
   const [pushBusy, setPushBusy] = useState(false);

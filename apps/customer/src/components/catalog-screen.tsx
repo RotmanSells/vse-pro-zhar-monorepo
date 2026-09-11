@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -10,6 +9,8 @@ import {
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LoggedPressable as Pressable } from "../debug/pressable";
+import { screenTrace } from "../debug/logger";
 
 import {
   addCartItem,
@@ -172,6 +173,7 @@ export function CatalogScreen({
   profileClient,
   notificationsClient
 }: CatalogScreenProps): React.JSX.Element {
+  useEffect(() => screenTrace("catalog"), []);
   const defaultClient = useMemo(() => createCatalogClient(), []);
   const catalogClient = client ?? defaultClient;
   const defaultQuoteClient = useMemo(() => createCartQuoteClient(), []);

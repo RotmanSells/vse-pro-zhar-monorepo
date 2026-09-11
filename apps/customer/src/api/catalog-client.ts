@@ -3,6 +3,7 @@ import {
   type CatalogClientOptions as SharedCatalogClientOptions,
   type CatalogReadClient
 } from "@vse-pro-zhar/api-client";
+import { createTracedFetch } from "../debug/logger";
 
 const DEFAULT_API_URL = "http://localhost:3000";
 
@@ -30,6 +31,7 @@ export function createCatalogClient(
 
   return createSharedCatalogClient({
     ...clientOptions,
+    fetchImpl: createTracedFetch("catalog", clientOptions.fetchImpl),
     apiUrl: apiUrl ?? getConfiguredApiUrl()
   });
 }

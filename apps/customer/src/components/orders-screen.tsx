@@ -3,12 +3,13 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
-  Pressable,
   ScrollView,
   Text,
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LoggedPressable as Pressable } from "../debug/pressable";
+import { screenTrace } from "../debug/logger";
 
 import {
   createOrderRequestController,
@@ -143,6 +144,7 @@ function OrderDetail({
 }
 
 export function OrdersScreen({ customer, orderClient, cancellationClient, onBack }: OrdersScreenProps): React.JSX.Element {
+  useEffect(() => screenTrace("orders"), []);
   const [listState, setListState] = useState<OrdersListRequestState>({ status: "idle" });
   const [detailState, setDetailState] = useState<OrderDetailRequestState>({ status: "idle" });
   const [cancellationState, setCancellationState] = useState<CancellationRequestState>({ status: "idle" });

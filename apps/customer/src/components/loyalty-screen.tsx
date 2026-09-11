@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LoggedPressable as Pressable } from "../debug/pressable";
+import { screenTrace } from "../debug/logger";
 
 import {
   createLoyaltyRequestController,
@@ -114,6 +116,7 @@ function LoadingCard({ children }: { readonly children: string }): React.JSX.Ele
 }
 
 export function LoyaltyScreen({ client, onTabSelect, onRedemptionSelected, cartItemCount = 0 }: LoyaltyScreenProps): React.JSX.Element {
+  useEffect(() => screenTrace("loyalty"), []);
   const [summaryState, setSummaryState] = useState<LoyaltySummaryRequestState>({ status: "loading" });
   const [ledgerState, setLedgerState] = useState<LoyaltyLedgerRequestState>({ status: "loading" });
   const [questState, setQuestState] = useState<QuestRequestState>({ status: "loading" });

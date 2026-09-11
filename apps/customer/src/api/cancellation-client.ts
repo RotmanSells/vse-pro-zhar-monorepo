@@ -5,6 +5,7 @@ import {
 } from "@vse-pro-zhar/api-client";
 
 import { createPlatformAuthTransport } from "../auth/storage";
+import { createTracedFetch } from "../debug/logger";
 
 const DEFAULT_API_URL = "http://localhost:3000";
 
@@ -19,6 +20,7 @@ export interface CancellationClientOptions extends Omit<SharedOptions, "apiUrl" 
 export function createCancellationClient(options: CancellationClientOptions = {}): CancellationClient {
   return createSharedCancellationClient({
     ...options,
+    fetchImpl: createTracedFetch("cancellation", options.fetchImpl),
     apiUrl: options.apiUrl ?? (process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_API_URL),
     transport: options.transport ?? createPlatformAuthTransport()
   });

@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { LoggedPressable as Pressable } from "../debug/pressable";
 
 export type CustomerTab = "menu" | "roulette" | "passport" | "cart" | "profile";
 

@@ -3,6 +3,7 @@ import {
   type HealthClient as SharedHealthClient,
   type HealthClientOptions as SharedHealthClientOptions
 } from "@vse-pro-zhar/api-client";
+import { createTracedFetch } from "../debug/logger";
 
 const DEFAULT_API_URL = "http://localhost:3000";
 
@@ -30,6 +31,7 @@ export function createHealthClient(
 
   return createSharedHealthClient({
     ...clientOptions,
+    fetchImpl: createTracedFetch("health", clientOptions.fetchImpl),
     apiUrl: apiUrl ?? getConfiguredApiUrl()
   });
 }

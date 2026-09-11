@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Text, TextInput, View } from "react-native";
+import { LoggedPressable as Pressable } from "../debug/pressable";
 
 import { formatRussianPhoneInput } from "@vse-pro-zhar/contracts";
 

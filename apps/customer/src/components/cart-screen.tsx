@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  Pressable,
   ScrollView,
   Text,
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LoggedPressable as Pressable } from "../debug/pressable";
+import { screenTrace } from "../debug/logger";
 
 import {
   cartQuoteMatchesItems,
@@ -172,6 +173,7 @@ export function CartScreen({
   coalBalance = 0,
   storageError
 }: CartScreenProps): React.JSX.Element {
+  useEffect(() => screenTrace("cart"), []);
   const [quoteState, setQuoteState] = useState<CartQuoteRequestState>({
     status: "idle"
   });

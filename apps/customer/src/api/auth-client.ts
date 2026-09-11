@@ -6,6 +6,7 @@ import {
 } from "@vse-pro-zhar/api-client";
 
 import { createPlatformAuthTransport } from "../auth/storage";
+import { createTracedFetch } from "../debug/logger";
 
 // Web auth cookies must use the same host as the Customer Web origin family.
 const DEFAULT_API_URL = "http://localhost:3000";
@@ -33,6 +34,7 @@ export function createAuthClient(options: AuthClientOptions = {}): SharedAuthCli
   const { apiUrl, transport, ...clientOptions } = options;
   return createSharedAuthClient({
     ...clientOptions,
+    fetchImpl: createTracedFetch("auth", clientOptions.fetchImpl),
     apiUrl: apiUrl ?? getConfiguredApiUrl(),
     transport: transport ?? createPlatformAuthTransport()
   });

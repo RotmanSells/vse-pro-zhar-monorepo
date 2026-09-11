@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
-  Pressable,
   ScrollView,
   Text,
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LoggedPressable as Pressable } from "../debug/pressable";
+import { screenTrace } from "../debug/logger";
 
 import {
   createCheckoutRequestController,
@@ -102,6 +103,7 @@ export function CheckoutScreen({
   onOrderCreated,
   onViewOrders
 }: CheckoutScreenProps): React.JSX.Element {
+  useEffect(() => screenTrace("checkout"), []);
   const [optionsState, setOptionsState] = useState<CheckoutOptionsRequestState>({
     status: "idle"
   });

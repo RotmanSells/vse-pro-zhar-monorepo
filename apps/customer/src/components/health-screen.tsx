@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
   Text,
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LoggedPressable as Pressable } from "../debug/pressable";
+import { screenTrace } from "../debug/logger";
 
 import {
   createHealthRequestController,
@@ -20,6 +21,7 @@ export interface HealthScreenProps {
 }
 
 export function HealthScreen({ client }: HealthScreenProps): React.JSX.Element {
+  useEffect(() => screenTrace("health"), []);
   const defaultClient = useMemo(() => createHealthClient(), []);
   const healthClient = client ?? defaultClient;
   const [state, setState] = useState<HealthRequestState>({

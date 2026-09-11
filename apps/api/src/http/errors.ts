@@ -110,7 +110,12 @@ export function registerErrorHandlers(app: FastifyInstance): void {
 
     request.log.error(
       {
+        event: "api.error",
+        requestId: request.id,
+        method: request.method,
+        path: request.url,
         errorName: error instanceof Error ? error.name : "UnknownError",
+        ...(error instanceof ApiRequestError ? { errorCode: error.code, statusCode: error.statusCode } : {}),
         ...(error instanceof ApiRequestError && error.logContext !== null
           ? { context: error.logContext }
           : {})

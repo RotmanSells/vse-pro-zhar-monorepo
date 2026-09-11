@@ -82,6 +82,16 @@ Development URLs:
 
 Customer и Admin знают только Backend API. Customer получает `/catalog`, auth и notifications endpoints через общий `@vse-pro-zhar/api-client`, который валидирует ответы через `@vse-pro-zhar/contracts` и управляет timeout/abort. Web и native targets используют lightweight `/auth/identify` по одному номеру телефона; Web получает HttpOnly cookie, iOS/Android — bearer token в secure storage. SMS-код для входа не отправляется. Native push permission/token регистрируется через `POST /notifications/devices`, а preference хранится в PostgreSQL. SMS.ru adapter оставлен только как server-side boundary для будущих SMS-уведомлений и не вызывается auth flow. Каталог остаётся anonymous-first, но add-to-cart требует сохранённого Customer: после успешной auth pending reference добавляется в M4 guest cart. Гостевая корзина хранит только Product references и quantities, а актуальные цены получает через Backend quote.
 
+### Подробные dev-логи Customer
+
+Для локальной проверки через Expo Go можно включить realtime tracing:
+
+```bash
+EXPO_PUBLIC_DEBUG_LOGS=1 EXPO_PUBLIC_API_URL=https://public-api.example.com npx expo start --tunnel --go
+```
+
+В Metro terminal будут видны JSON-события `screen.open/close`, `ui.press.start/finish/error` и `api.request.start/finish/error` с timestamp, route, method, status, requestId и `durationMs`. Backend terminal дополнительно показывает каждый входящий запрос, ответ и безопасный `api.error`. Телефоны, токены, cookies, payment bodies и другие секреты в эти логи не записываются.
+
 ### Облачный Android preview
 
 Customer настроен для облачного цикла EAS Update. Один раз создаётся APK и устанавливается на Android:

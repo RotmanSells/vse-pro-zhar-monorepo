@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Easing, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Animated, Easing, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LoggedPressable as Pressable } from "../debug/pressable";
+import { screenTrace } from "../debug/logger";
 
 import {
   createLoyaltyGamificationController,
@@ -82,6 +84,7 @@ function wheelGradient(prizes: readonly { readonly type: string }[]): string {
 }
 
 export function WheelScreen({ client, onTabSelect, cartItemCount = 0, coalBalance = 0 }: WheelScreenProps): React.JSX.Element {
+  useEffect(() => screenTrace("wheel"), []);
   const [wheelState, setWheelState] = useState<WheelRequestState>({ status: "loading" });
   const [spinState, setSpinState] = useState<WheelSpinRequestState>({ status: "idle" });
   const controllerRef = useRef<LoyaltyGamificationController | null>(null);

@@ -6,6 +6,7 @@ import {
 } from "@vse-pro-zhar/api-client";
 
 import { createPlatformAuthTransport } from "../auth/storage";
+import { createTracedFetch } from "../debug/logger";
 
 // Web checkout must share the API host with the auth cookie.
 const DEFAULT_API_URL = "http://localhost:3000";
@@ -33,6 +34,7 @@ export function createCheckoutClient(
   const { apiUrl, transport, ...clientOptions } = options;
   return createSharedCheckoutClient({
     ...clientOptions,
+    fetchImpl: createTracedFetch("checkout", clientOptions.fetchImpl),
     apiUrl: apiUrl ?? getConfiguredApiUrl(),
     transport: transport ?? createPlatformAuthTransport()
   });

@@ -5,6 +5,7 @@ import {
 } from "@vse-pro-zhar/api-client";
 
 import { createPlatformAuthTransport } from "../auth/storage";
+import { createTracedFetch } from "../debug/logger";
 
 const DEFAULT_API_URL = "http://localhost:3000";
 
@@ -34,6 +35,7 @@ export function createPaymentClient(
   const { apiUrl, transport, ...clientOptions } = options;
   return createSharedPaymentClient({
     ...clientOptions,
+    fetchImpl: createTracedFetch("payments", clientOptions.fetchImpl),
     apiUrl: apiUrl ?? getConfiguredApiUrl(),
     transport: transport ?? createPlatformAuthTransport()
   });

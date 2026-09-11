@@ -6,6 +6,7 @@ import {
 } from "@vse-pro-zhar/api-client";
 
 import { createPlatformAuthTransport } from "../auth/storage";
+import { createTracedFetch } from "../debug/logger";
 
 const DEFAULT_API_URL = "http://localhost:3000";
 
@@ -33,6 +34,7 @@ export function createOrderClient(
   const { apiUrl, transport, ...clientOptions } = options;
   return createSharedOrderClient({
     ...clientOptions,
+    fetchImpl: createTracedFetch("orders", clientOptions.fetchImpl),
     apiUrl: apiUrl ?? getConfiguredApiUrl(),
     transport: transport ?? createPlatformAuthTransport()
   });
