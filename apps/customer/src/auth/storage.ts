@@ -35,18 +35,36 @@ export function createWebAuthTransport(): AuthSessionTransport {
 export function createNativeAuthTransport(
   secureStore: SecureStoreAdapter = createLazyNativeSecureStore()
 ): AuthSessionTransport {
+  let developmentFallbackToken: string | null = null;
+  const isDevelopment = process.env.NODE_ENV !== "production";
   return {
     mode: "bearer",
     getRequestHeaders: async (): Promise<Readonly<Record<string, string>>> => {
-      const token = await secureStore.getItemAsync(SESSION_KEY);
+      let token: string | null;
+      try {
+        token = await secureStore.getItemAsync(SESSION_KEY);
+      } catch (error: unknown) {
+        if (!isDevelopment) throw error;
+        token = developmentFallbackToken;
+      }
       if (token === null) return {};
       return { Authorization: `Bearer ${token}` };
     },
     storeSession: async (token) => {
-      await secureStore.setItemAsync(SESSION_KEY, token);
+      try {
+        await secureStore.setItemAsync(SESSION_KEY, token);
+      } catch (error: unknown) {
+        if (!isDevelopment) throw error;
+        developmentFallbackToken = token;
+      }
     },
     clearSession: async () => {
-      await secureStore.deleteItemAsync(SESSION_KEY);
+      try {
+        await secureStore.deleteItemAsync(SESSION_KEY);
+      } catch (error: unknown) {
+        if (!isDevelopment) throw error;
+        developmentFallbackToken = null;
+      }
     }
   };
 }
