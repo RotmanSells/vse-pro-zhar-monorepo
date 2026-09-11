@@ -26,6 +26,7 @@ vi.mock("react-native", () => ({
   TextInput: "TextInput",
   View: "View"
 }));
+vi.mock("react-native-safe-area-context", () => ({ SafeAreaView: "SafeAreaView" }));
 
 const firstCatalog: CatalogResponse = {
   categories: [

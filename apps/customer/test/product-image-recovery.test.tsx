@@ -13,6 +13,7 @@ vi.mock("react-native", () => ({
   Text: "Text",
   View: "View"
 }));
+vi.mock("react-native-safe-area-context", () => ({ SafeAreaView: "SafeAreaView" }));
 
 const product: CatalogProduct = {
   id: 1,

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Easing, Pressable, SafeAreaView, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Animated, Easing, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   createLoyaltyGamificationController,

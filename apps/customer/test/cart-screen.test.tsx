@@ -27,6 +27,7 @@ vi.mock("react-native", () => ({
   TextInput: "TextInput",
   View: "View"
 }));
+vi.mock("react-native-safe-area-context", () => ({ SafeAreaView: "SafeAreaView" }));
 
 const product = {
   id: 1,

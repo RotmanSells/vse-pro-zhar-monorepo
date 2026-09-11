@@ -1,5 +1,6 @@
 import { Slot } from "expo-router";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function RootLayout(): React.JSX.Element {
-  return <Slot />;
+  return <SafeAreaProvider><Slot /></SafeAreaProvider>;
 }

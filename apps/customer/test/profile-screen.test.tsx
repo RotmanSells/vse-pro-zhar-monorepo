@@ -14,6 +14,7 @@ vi.mock("react-native", () => ({
   Text: "Text",
   View: "View"
 }));
+vi.mock("react-native-safe-area-context", () => ({ SafeAreaView: "SafeAreaView" }));
 
 const profile: CustomerProfileResponse = {
   customer: { phone: "+79991234567", name: "Анна", birthDate: null },

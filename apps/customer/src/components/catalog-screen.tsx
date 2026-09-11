@@ -3,13 +3,13 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   Platform,
   View
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   addCartItem,
