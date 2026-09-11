@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import type { AuthSessionTransport } from "@vse-pro-zhar/api-client";
 
 const SESSION_KEY = "vse-pro-zhar:session-token";
+let developmentFallbackToken: string | null = null;
 
 export interface SecureStoreAdapter {
   getItemAsync(key: string): Promise<string | null>;
@@ -35,7 +36,6 @@ export function createWebAuthTransport(): AuthSessionTransport {
 export function createNativeAuthTransport(
   secureStore: SecureStoreAdapter = createLazyNativeSecureStore()
 ): AuthSessionTransport {
-  let developmentFallbackToken: string | null = null;
   const isDevelopment = process.env.NODE_ENV !== "production";
   return {
     mode: "bearer",

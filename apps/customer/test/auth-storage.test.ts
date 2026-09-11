@@ -26,14 +26,16 @@ describe("Customer native auth storage adapter", () => {
   });
 
   it("keeps Expo Go development usable when SecureStore is unavailable", async () => {
-    const transport = createNativeAuthTransport({
+    const failingStore = {
       getItemAsync: async () => { throw new Error("native module unavailable"); },
       setItemAsync: async () => { throw new Error("native module unavailable"); },
       deleteItemAsync: async () => { throw new Error("native module unavailable"); }
-    });
+    };
+    const transport = createNativeAuthTransport(failingStore);
+    const secondTransport = createNativeAuthTransport(failingStore);
     await transport.storeSession("d".repeat(43), "2026-09-01T10:00:00.000Z");
-    expect(await transport.getRequestHeaders()).toEqual({ Authorization: `Bearer ${"d".repeat(43)}` });
+    expect(await secondTransport.getRequestHeaders()).toEqual({ Authorization: `Bearer ${"d".repeat(43)}` });
     await transport.clearSession();
-    expect(await transport.getRequestHeaders()).toEqual({});
+    expect(await secondTransport.getRequestHeaders()).toEqual({});
   });
 });
